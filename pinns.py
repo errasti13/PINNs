@@ -1,8 +1,10 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.animation as animation
+
 
 class PINN:
     def __init__(self, input_shape=(2,), layers=[20, 20, 20], activation='tanh', learning_rate=0.01):
@@ -58,7 +60,7 @@ class BurgersEquation:
             x0 = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)  # Uniform sampling: x in [x_min, x_max]
         
         t0 = np.full((N0, 1), t_min, dtype=np.float32)  # Initial condition: t = t_min
-        u0 = -np.sin(np.pi * x0 / (x_max - x_min)).astype(np.float32)  # Initial velocity
+        u0 = -np.sin(2 * np.pi * x0 / (x_max - x_min)).astype(np.float32)  # Initial velocity
 
         x_f = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)  # Collocation points: x in [x_min, x_max]
         t_f = (np.random.rand(Nf, 1) * (t_max - t_min) + t_min).astype(np.float32)  # Collocation points: t in [t_min, t_max]
@@ -169,8 +171,8 @@ def main():
     burgers_eq = BurgersEquation()
 
     # Define the domain
-    x_range = (-8, 8)
-    t_range = (0, 8)
+    x_range = (-1, 1)
+    t_range = (0, 1)
 
     # Generate data
     x_f, t_f, u0, x0, t0 = burgers_eq.generate_data(x_range, t_range, N0=100, Nf=10000, sampling_method='uniform')
@@ -179,7 +181,7 @@ def main():
     pinn = PINN()
 
     # Train the model
-    pinn.train(burgers_eq.loss_function, (x_f, t_f, u0, x0, t0), epochs=100000, print_interval=100)
+    pinn.train(burgers_eq.loss_function, (x_f, t_f, u0, x0, t0), epochs=10000, print_interval=100)
 
     # Prediction grid
     x_pred = np.linspace(x_range[0], x_range[1], 100)[:, None].astype(np.float32)
