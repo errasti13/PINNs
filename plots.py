@@ -44,24 +44,26 @@ def visualize_solution(model, X_pred, T_pred, x0, u0):
 
     # Plot settings
     plt.figure(figsize=(6, 4))
+
+    timeRange = T_pred.max() - T_pred.min()
     
-    value = 0
+    value = timeRange * 0
     idx = find_nearest(T_pred.flatten(), value)
     plt.plot(X_pred.flatten()[idx], u_pred.flatten()[idx], label=f'Predicted at t={value}')
     
-    value = 0.25
+    value = timeRange * 0.25
     idx = find_nearest(T_pred.flatten(), value)
     plt.plot(X_pred.flatten()[idx], u_pred.flatten()[idx], label=f'Predicted at t={value}')
     
-    value = 0.5
+    value = timeRange * 0.5
     idx = find_nearest(T_pred.flatten(), value)
     plt.plot(X_pred.flatten()[idx], u_pred.flatten()[idx], label=f'Predicted at t={value}')
     
-    value = 0.75
+    value = timeRange * 0.75
     idx = find_nearest(T_pred.flatten(), value)
     plt.plot(X_pred.flatten()[idx], u_pred.flatten()[idx], label=f'Predicted at t={value}')
     
-    value = 1
+    value = timeRange * 1
     idx = find_nearest(T_pred.flatten(), value)
     plt.plot(X_pred.flatten()[idx], u_pred.flatten()[idx], label=f'Predicted at t={value}')
          
