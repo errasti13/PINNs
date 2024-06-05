@@ -128,5 +128,3 @@ class BurgersEquation:
             u_solution[n, :] = u
 
         return u_solution
-
-
