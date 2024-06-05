@@ -102,7 +102,7 @@ class BurgersEquation:
 
         # Initial condition
         x = np.linspace(x_min, x_max, Nx)
-        u_initial = -np.sin(np.pi * x)
+        u_initial = -np.sin(2 * np.pi * x / (x_max - x_min))
 
         # Initialize u and the solution matrix
         u = u_initial.copy()
@@ -114,6 +114,7 @@ class BurgersEquation:
 
         # Time-stepping loop
         for n in range(1, Nt + 1):
+            print(n)
             t = n * dt
             for i in range(1, Nx - 1):
                 u_new[i] = u[i] - dt * u[i] * (u[i] - u[i - 1]) / dx + alpha * (u[i + 1] - 2 * u[i] + u[i - 1])
