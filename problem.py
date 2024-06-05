@@ -47,18 +47,29 @@ class BurgersEquation:
 
         return x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1 
 
-    def loss_function(self, model, x_f, t_f, u0, x0, t0):
+    def loss_function(self, model, x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1):
         x_f = tf.convert_to_tensor(x_f, dtype=tf.float32)
         t_f = tf.convert_to_tensor(t_f, dtype=tf.float32)
         x0 = tf.convert_to_tensor(x0, dtype=tf.float32)
         t0 = tf.convert_to_tensor(t0, dtype=tf.float32)
         u0 = tf.convert_to_tensor(u0, dtype=tf.float32)
 
+        xBc0 = tf.convert_to_tensor(xBc0, dtype=tf.float32)
+        tBc0 = tf.convert_to_tensor(tBc0, dtype=tf.float32)
+        uBc0 = tf.convert_to_tensor(uBc0, dtype=tf.float32)
+
+        xBc1 = tf.convert_to_tensor(xBc1, dtype=tf.float32)
+        tBc1 = tf.convert_to_tensor(tBc1, dtype=tf.float32)
+        uBc1 = tf.convert_to_tensor(uBc1, dtype=tf.float32)
+
         with tf.GradientTape(persistent=True) as tape:
             tape.watch([x_f, t_f, x0, t0])
             
             u_pred = model(tf.concat([x_f, t_f], axis=1))
             u0_pred = model(tf.concat([x0, t0], axis=1))
+
+            uBc0_pred = model(tf.concat([xBc0, tBc0], axis = 1))
+            uBc1_pred = model(tf.concat([xBc1, tBc1], axis = 1))
             
             u_x = tape.gradient(u_pred, x_f)
             u_t = tape.gradient(u_pred, t_f)
@@ -66,6 +77,8 @@ class BurgersEquation:
             
         f = u_t + u_pred * u_x - self.nu * u_xx
         u0_loss = tf.reduce_mean(tf.square(u0_pred - u0))
+        uBc0_loss = tf.reduce_mean(tf.square(uBc0_pred - uBc0))
+        uBc1_loss = tf.reduce_mean(tf.square(uBc1_pred - uBc1))
         f_loss = tf.reduce_mean(tf.square(f))
         
-        return u0_loss + f_loss
+        return u0_loss+ uBc0_loss + uBc1_loss + f_loss
