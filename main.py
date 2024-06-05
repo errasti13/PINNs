@@ -1,7 +1,7 @@
 import numpy as np
 from pinns import PINN
 from problem import BurgersEquation
-from plots import visualize_solution
+from plots import *
 
 def main():
     # Create the Burgers' equation problem
@@ -26,4 +26,7 @@ def main():
     X_pred, T_pred = np.meshgrid(x_pred, t_pred)
 
     # Visualize the solution
-    visualize_solution(pinn, X_pred
+    visualize_solution(pinn, X_pred, T_pred, x0, u0)
+
+if __name__ == "__main__":
+    main()
