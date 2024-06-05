@@ -115,10 +115,11 @@ class BurgersEquation:
         # Time-stepping loop
         for n in range(1, Nt + 1):
             t = n * dt
-            for i in range(1, Nx - 1):
-                u_new[i] = u[i] - dt * u[i] * (u[i] - u[i - 1]) / dx + alpha * (u[i + 1] - 2 * u[i] + u[i - 1])
             
-            # Boundary conditions
+            u_new[1:Nx-1] = (u[1:Nx-1] 
+                            - dt * u[1:Nx-1] * (u[1:Nx-1] - u[0:Nx-2]) / dx 
+                            + alpha * (u[2:Nx] - 2 * u[1:Nx-1] + u[0:Nx-2]))
+
             u_new[0] = 0.0
             u_new[-1] = 0.0
 

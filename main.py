@@ -7,8 +7,8 @@ def main():
     burgers_eq = BurgersEquation()
 
     # Define the domain
-    x_range = (-8, 8)
-    t_range = (0, 8)
+    x_range = (-1, 1)
+    t_range = (0, 1)
 
     # Generate data
     x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1  = burgers_eq.generate_data(x_range, t_range, N0=100, Nf=10000, sampling_method='uniform')
