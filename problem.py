@@ -5,10 +5,7 @@ class BurgersEquation:
     def __init__(self, nu=0.01 / np.pi):
         self.nu = nu
 
-    def generate_data(self, x_range, t_range, N0=100, Nf=10000, sampling_method='uniform'):
-        x_min, x_max = x_range
-        t_min, t_max = t_range
-        
+    def getInitialSolution(self, N0, x_min, x_max, t_min, sampling_method):
         if sampling_method == 'random':
             x0 = (np.random.rand(N0, 1) * (x_max - x_min) + x_min).astype(np.float32)  # Initial condition: x in [x_min, x_max]
         elif sampling_method == 'uniform':
@@ -16,6 +13,14 @@ class BurgersEquation:
         
         t0 = np.full((N0, 1), t_min, dtype=np.float32)  # Initial condition: t = t_min
         u0 = -np.sin(2 * np.pi * x0 / (x_max - x_min)).astype(np.float32)  # Initial velocity
+
+        return x0, t0, u0
+
+    def generate_data(self, x_range, t_range, N0=100, Nf=10000, sampling_method='uniform'):
+        x_min, x_max = x_range
+        t_min, t_max = t_range
+
+        x0, t0, u0 = self.getInitialSolution(N0, x_min, x_max, t_min, sampling_method)
 
         x_f = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)  # Collocation points: x in [x_min, x_max]
         t_f = (np.random.rand(Nf, 1) * (t_max - t_min) + t_min).astype(np.float32)  # Collocation points: t in [t_min, t_max]
