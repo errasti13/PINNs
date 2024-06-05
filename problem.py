@@ -49,7 +49,7 @@ class BurgersEquation:
     def loss_function(self, model, data):
 
         x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1 = data
-        
+
         x_f = tf.convert_to_tensor(x_f, dtype=tf.float32)
         t_f = tf.convert_to_tensor(t_f, dtype=tf.float32)
         x0 = tf.convert_to_tensor(x0, dtype=tf.float32)
@@ -84,3 +84,42 @@ class BurgersEquation:
         f_loss = tf.reduce_mean(tf.square(f))
         
         return u0_loss+ uBc0_loss + uBc1_loss + f_loss
+    
+    def numericalSolution(self, xRange, tRange, Nx, Nt):
+        # Parameters
+        nu = self.nu  # Viscosity
+        x_min, x_max = xRange[0], xRange[1]
+        t_min, t_max = tRange[0], tRange[1]
+
+        # Discretization
+        dx = (x_max - x_min) / (Nx - 1)
+        dt = (t_max - t_min) / Nt
+
+        # Stability criterion
+        alpha = nu * dt / dx**2
+        if alpha > 0.5:
+            print("Warning: The solution may be unstable. Consider reducing dt or increasing dx.")
+
+        # Initial condition
+        x = np.linspace(x_min, x_max, Nx)
+        u_initial = -np.sin(np.pi * x)
+
+        # Initialize u
+        u = u_initial.copy()
+        u_new = np.zeros_like(u)
+
+        # Time-stepping loop
+        for n in range(1, Nt + 1):
+            t = n * dt
+            for i in range(1, Nx - 1):
+                u_new[i] = u[i] - dt * u[i] * (u[i] - u[i - 1]) / dx + alpha * (u[i + 1] - 2 * u[i] + u[i - 1])
+            
+            # Boundary conditions
+            u_new[0] = 0.0
+            u_new[-1] = 0.0
+            
+            # Update u
+            u = u_new.copy()
+
+        return u
+
