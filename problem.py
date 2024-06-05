@@ -104,9 +104,13 @@ class BurgersEquation:
         x = np.linspace(x_min, x_max, Nx)
         u_initial = -np.sin(np.pi * x)
 
-        # Initialize u
+        # Initialize u and the solution matrix
         u = u_initial.copy()
         u_new = np.zeros_like(u)
+        u_solution = np.zeros((Nt+1, Nx))
+
+        # Store initial condition
+        u_solution[0, :] = u_initial
 
         # Time-stepping loop
         for n in range(1, Nt + 1):
@@ -117,9 +121,12 @@ class BurgersEquation:
             # Boundary conditions
             u_new[0] = 0.0
             u_new[-1] = 0.0
-            
-            # Update u
-            u = u_new.copy()
 
-        return u
+            u = u_new.copy()
+        
+            # Store solution at this time step
+            u_solution[n, :] = u
+
+        return u_solution
+
 
