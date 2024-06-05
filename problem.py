@@ -15,6 +15,23 @@ class BurgersEquation:
         u0 = -np.sin(2 * np.pi * x0 / (x_max - x_min)).astype(np.float32)  # Initial velocity
 
         return x0, t0, u0
+    
+
+    def getBoundaryCondition(self, N0, t_min, t_max, x, sampling_method='uniform'):
+        # Generate time coordinates based on the sampling method
+        if sampling_method == 'random':
+            tBc = (np.random.rand(N0, 1) * (t_max - t_min) + t_min).astype(np.float32)  # Random sampling in [t_min, t_max]
+        elif sampling_method == 'uniform':
+            tBc = np.linspace(t_min, t_max, N0)[:, None].astype(np.float32)  # Uniform sampling in [t_min, t_max]
+        else:
+            raise ValueError("sampling_method should be 'random' or 'uniform'")
+
+        xBc = np.full((N0, 1), x, dtype=np.float32)  # Boundary x-coordinate is constant
+
+        uBc = np.zeros((N0, 1), dtype=np.float32)  # Initial velocity/condition
+
+        return xBc, tBc, uBc
+
 
     def generate_data(self, x_range, t_range, N0=100, Nf=10000, sampling_method='uniform'):
         x_min, x_max = x_range
@@ -22,10 +39,13 @@ class BurgersEquation:
 
         x0, t0, u0 = self.getInitialSolution(N0, x_min, x_max, t_min, sampling_method)
 
+        xBc0, tBc0, uBc0 = self.getBoundaryCondition(N0, t_min, t_max, x_min, sampling_method)
+        xBc1, tBc1, uBc1 = self.getBoundaryCondition(N0, t_min, t_max, x_max, sampling_method)
+
         x_f = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)  # Collocation points: x in [x_min, x_max]
         t_f = (np.random.rand(Nf, 1) * (t_max - t_min) + t_min).astype(np.float32)  # Collocation points: t in [t_min, t_max]
 
-        return x_f, t_f, u0, x0, t0
+        return x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1 
 
     def loss_function(self, model, x_f, t_f, u0, x0, t0):
         x_f = tf.convert_to_tensor(x_f, dtype=tf.float32)
