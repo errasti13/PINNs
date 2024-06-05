@@ -1,38 +1,60 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
 class Plot:
-    def __init__(self, u_pred, X_pred, T_pred, x0, u0):
-        self.u_pred = u_pred
-        self.X_pred = X_pred
-        self.T_pred = T_pred
+    def __init__(self, u_pred, X_pred, T_pred, x0, u0, u_num, X_num, T_num):
+
         self.x0 = x0
         self.u0 = u0
-        self.U_pred = self.u_pred.reshape(self.X_pred.shape)
-        
+
+        self.X_pred = X_pred
+        self.T_pred = T_pred
+        self.U_pred = u_pred.reshape(self.X_pred.shape)
+
+        self.X_num = X_num
+        self.T_num = T_num
+        self.U_num = u_num.reshape(self.X_num.shape)
+
     def contour_plot(self):
         plt.figure(figsize=(10, 6))
+
+        # Predicted solution
+        plt.subplot(1, 2, 1)
         plt.contourf(self.T_pred, self.X_pred, self.U_pred, levels=100, cmap='jet')
         plt.colorbar()
         plt.xlabel('t')
         plt.ylabel('x')
         plt.title('Predicted u(x,t)')
+
+        # Numerical solution
+        
+        plt.subplot(1, 2, 2)
+        plt.contourf(self.T_num, self.X_num, self.U_num, levels=100, cmap='jet')
+        plt.colorbar()
+        plt.xlabel('t')
+        plt.ylabel('x')
+        plt.title('Numerical u(x,t)')
+
+        plt.tight_layout()
         plt.show()
-    
-    def surface_plot(self):
-        fig = plt.figure(figsize=(10, 6))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(self.T_pred, self.X_pred, self.U_pred, cmap='jet')
-        ax.set_xlabel('t')
-        ax.set_ylabel('x')
-        ax.set_zlabel('u(x,t)')
-        ax.set_title('3D Surface plot of u(x,t)')
+
+    def plotNumericalSolution(self):
+
+        # Create meshgrid for plotting
+        x = np.linspace(self.X_pred.min(), self.X_pred.min(), self.Nx)
+        t = np.linspace(self.T_pred.min(), self.T_pred.max()[1], self.Nt+1)
+        X, T = np.meshgrid(x, t)
+
+        # Plot results
+        plt.figure(figsize=(10, 6))
+        plt.contourf(T, X, self.u_numeric, levels=100, cmap='jet')
+        plt.colorbar()
+        plt.xlabel('t')
+        plt.ylabel('x')
+        plt.title('Contour Plot of Numerical Solution')
         plt.show()
-    
+        plt.show()
+
     def initial_vs_predicted(self):
         idx = self.find_nearest(self.T_pred.flatten(), 0)
         
