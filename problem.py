@@ -32,7 +32,6 @@ class BurgersEquation:
 
         return xBc, tBc, uBc
 
-
     def generate_data(self, x_range, t_range, N0=100, Nf=10000, sampling_method='uniform'):
         x_min, x_max = x_range
         t_min, t_max = t_range
@@ -47,7 +46,10 @@ class BurgersEquation:
 
         return x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1 
 
-    def loss_function(self, model, x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1):
+    def loss_function(self, model, data):
+
+        x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1 = data
+        
         x_f = tf.convert_to_tensor(x_f, dtype=tf.float32)
         t_f = tf.convert_to_tensor(t_f, dtype=tf.float32)
         x0 = tf.convert_to_tensor(x0, dtype=tf.float32)
