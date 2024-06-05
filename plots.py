@@ -84,9 +84,27 @@ class Plot:
         plt.grid(True)
         plt.tight_layout()
         plt.show()
+
+    def compareU(self, time):
+        idxPred = self.find_nearest(self.T_pred.flatten(), time)
+        idxNum = self.find_nearest(self.T_num.flatten(), time)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.X_num.flatten()[idxNum], self.U_num.flatten()[idxNum], 'b-', label='Numerical Solution')
+        plt.plot(self.X_pred.flatten()[idxPred], self.U_pred.flatten()[idxPred], 'r--', label='PINN Solution')
+        plt.xlabel('x')
+        plt.ylabel('u(x)')
+        plt.title(f'Comparison of u(x) at t = {time}')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
     
     @staticmethod
     def find_nearest(array, value):
         array = np.asarray(array)
-        idx = (np.abs(array - value)).argmin()
+        diff = np.abs(array - value)
+        min_diff = np.min(diff)
+        idx = np.where(diff == min_diff)[0]
         return idx
+
+
