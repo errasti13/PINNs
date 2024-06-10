@@ -2,10 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class Plot:
-    def __init__(self, u_pred, X_pred, T_pred, x0, u0, u_num, X_num, T_num):
-
-        self.x0 = x0
-        self.u0 = u0
+    def __init__(self, u_pred, X_pred, T_pred, u_num, X_num, T_num):
 
         self.X_pred = X_pred
         self.T_pred = T_pred
@@ -22,18 +19,14 @@ class Plot:
         plt.subplot(1, 2, 1)
         plt.contourf(self.T_pred, self.X_pred, self.U_pred, levels=100, cmap='jet')
         plt.colorbar()
-        plt.xlabel('t')
-        plt.ylabel('x')
-        plt.title('Predicted u(x,t)')
+        plt.title('PINN Solution')
 
         # Numerical solution
         
         plt.subplot(1, 2, 2)
         plt.contourf(self.T_num, self.X_num, self.U_num, levels=100, cmap='jet')
         plt.colorbar()
-        plt.xlabel('t')
-        plt.ylabel('x')
-        plt.title('Numerical u(x,t)')
+        plt.title('Numerical Solution')
 
         plt.tight_layout()
         plt.show()
@@ -53,18 +46,6 @@ class Plot:
         plt.ylabel('x')
         plt.title('Contour Plot of Numerical Solution')
         plt.show()
-        plt.show()
-
-    def initial_vs_predicted(self):
-        idx = self.find_nearest(self.T_pred.flatten(), 0)
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.x0, self.u0, 'bo', label='Initial condition')
-        plt.plot(self.X_pred.flatten()[idx], self.u_pred.flatten()[idx], 'r-', label='Predicted at t=0')
-        plt.xlabel('x')
-        plt.ylabel('u')
-        plt.legend()
-        plt.title('Initial Condition vs Predicted Solution at t=0')
         plt.show()
     
     def predicted_data_plot(self):
