@@ -1,5 +1,5 @@
 from pinns import PINN
-from problem import BurgersEquation
+from Burgers import BurgersEquation
 from plots import *
 
 def main():
@@ -18,10 +18,10 @@ def main():
 
     # Train the model
     data = (x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1)
-    pinn.train(burgers_eq.loss_function, data, epochs=100000, print_interval=1000)
+    pinn.train(burgers_eq.loss_function, data, epochs=10000, print_interval=1000)
 
-    Nx = 5000
-    Nt = 50000
+    Nx = 1000
+    Nt = 10000
 
     # Prediction grid
     x_pred = np.linspace(x_range[0], x_range[1], 100)[:, None].astype(np.float32)
@@ -37,7 +37,7 @@ def main():
     uNumeric = burgers_eq.numericalSolution(x_range, t_range, Nx, Nt) #Numerical solution to the Burguers equation
 
     plot = Plot(uPred, X_pred, T_pred, x0, u0, uNumeric, X_num, T_num)
-    plot.compareU(4)
+    plot.contour_plot()
 
 if __name__ == "__main__":
     main()
