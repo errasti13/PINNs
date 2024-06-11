@@ -7,21 +7,24 @@ class BurgersEquation:
     def __init__(self, nu=0.01 / np.pi):
         self.nu = nu
         self.bc_library = BoundaryConditionLibrary()
+        self.ic_library = InitialConditionsLibrary() 
 
 
-    def getInitialSolution(self, N0, x_min, x_max, t_min, sampling_method):
+    def getInitialSolution(self, N0, x_min, x_max, t_min, sampling_method='uniform'):
         if sampling_method == 'random':
             x0 = (np.random.rand(N0, 1) * (x_max - x_min) + x_min).astype(np.float32)
         elif sampling_method == 'uniform':
             x0 = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
-        
-        t0 = np.full((N0, 1), t_min, dtype=np.float32) 
-        u0 = -np.sin(2 * np.pi * x0 / (x_max - x_min)).astype(np.float32) 
+        else:
+            raise ValueError("sampling_method should be 'random' or 'uniform'")
+
+        t0 = np.full((N0, 1), t_min, dtype=np.float32)
+        _, u0 = self.ic_library.getCondition(N0, t_min, x0, condition='senoidal')
 
         return x0, t0, u0
     
     def getBoundaryCondition(self, N0, t_min, t_max, x, sampling_method='uniform', boundaryCondition='zeros'):
-        # Generate time coordinates based on the sampling method
+
         if sampling_method == 'random':
             tBc = (np.random.rand(N0, 1) * (t_max - t_min) + t_min).astype(np.float32)
         elif sampling_method == 'uniform':
@@ -29,7 +32,7 @@ class BurgersEquation:
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
         
-        xBc, uBc = self.bc_library.getBoundaryCondition(N0, x, boundaryCondition=boundaryCondition)
+        xBc, uBc = self.bc_library.getCondition(N0, x, tBc, condition=boundaryCondition)
 
         return xBc, tBc, uBc
 
@@ -102,8 +105,7 @@ class BurgersEquation:
             print("Warning: The solution may be unstable. Consider reducing dt or increasing dx.")
 
         # Initial condition
-        x = np.linspace(x_min, x_max, Nx)
-        u_initial = -np.sin(2 * np.pi * x / (x_max - x_min))
+        _, _, u_initial = self.getInitialSolution(Nx, x_min, x_max, t_min)
 
         # Initialize u and the solution matrix
         u = u_initial.copy()
@@ -111,7 +113,7 @@ class BurgersEquation:
         u_solution = np.zeros((Nt+1, Nx))
 
         # Store initial condition
-        u_solution[0, :] = u_initial
+        u_solution[0, :] = u_initial[:, 0]
         
         _, _, uBc1 = self.getBoundaryCondition(Nt, t_min, t_max, x_min, boundaryCondition='zeros')
         _, _, uBc2 = self.getBoundaryCondition(Nt, t_min, t_max, x_max, boundaryCondition='zeros')
@@ -130,6 +132,6 @@ class BurgersEquation:
             u = u_new.copy()
         
             # Store solution at this time step
-            u_solution[n, :] = u
+            u_solution[n, :] = u[:, 0]
 
         return u_solution
