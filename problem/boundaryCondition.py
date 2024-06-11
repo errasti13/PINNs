@@ -49,7 +49,7 @@ def ones1D(N0, x, y):
     
 def senoidal1D(N0, x, y):
     xBc = np.full((N0, 1), x, dtype=np.float32)
-    uBc = -np.sin(np.pi * y).astype(np.float32)  
+    uBc = -np.sin(2 * np.pi * y / (y.max() - y.min())).astype(np.float32)  
     return xBc, uBc
 
 def linear1D(N0, x, y, slope=1.0, intercept=0.0):
