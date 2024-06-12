@@ -54,7 +54,7 @@ class HeatEquation2D:
         x_f = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)
         y_f = (np.random.rand(Nf, 1) * (y_max - y_min) + y_min).astype(np.float32)
 
-        return x_f, y_f, xBc_left, yBc_left, uBc_left, xBc_right, yBc_right, uBc_right, xBc_bottom, yBc_bottom, uBc_bottom, xBc_top, yBc_top, uBc_top
+        return (x_f, y_f, xBc_left, yBc_left, uBc_left, xBc_right, yBc_right, uBc_right, xBc_bottom, yBc_bottom, uBc_bottom, xBc_top, yBc_top, uBc_top)
 
     def loss_function(self, model, data):
         x_f, y_f, xBc_left, yBc_left, uBc_left, xBc_right, yBc_right, uBc_right, xBc_bottom, yBc_bottom, uBc_bottom, xBc_top, yBc_top, uBc_top = data

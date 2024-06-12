@@ -48,7 +48,7 @@ class BurgersEquation:
         x_f = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)
         t_f = (np.random.rand(Nf, 1) * (t_max - t_min) + t_min).astype(np.float32)
 
-        return x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1 
+        return (x_f, t_f, u0, x0, t0, xBc0, tBc0, uBc0, xBc1, tBc1, uBc1)
 
     def loss_function(self, model, data):
 
