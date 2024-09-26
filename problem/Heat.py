@@ -101,6 +101,22 @@ class HeatEquation2D:
 
         return uBc_left_loss + uBc_right_loss + uBc_bottom_loss + uBc_top_loss + f_loss
 
+    def predict(self, pinn, x_range, y_range, Nx=100, Ny=100):
+        # Prediction grid
+        x_pred = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
+        y_pred = np.linspace(y_range[0], y_range[1], Ny)[:, None].astype(np.float32)
+        X_pred, Y_pred = np.meshgrid(x_pred, y_pred)
+
+        # Predict solution using the trained PINN model
+        uPred = pinn.model.predict(np.hstack((X_pred.flatten()[:, None], Y_pred.flatten()[:, None])))
+
+        # Numerical solution for comparison
+        x_num = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
+        y_num = np.linspace(y_range[0], y_range[1], Ny)[:, None].astype(np.float32)
+        X_num, Y_num = np.meshgrid(x_num, y_num)
+        uNumeric = self.numericalSolution(x_range, y_range, Nx, Ny)
+        
+        return uPred, X_pred, Y_pred, uNumeric, X_num, Y_num
 
     def numericalSolution(self, xRange, yRange, Nx, Ny):
         x_min, x_max = xRange[0], xRange[1]

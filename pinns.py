@@ -32,8 +32,8 @@ class PINN:
     def train(self, loss_function, data, epochs=50000, print_interval=100):
         for epoch in range(epochs):
             loss = self.train_step(loss_function, data)
-            if epoch % print_interval == 0:
-                print(f"Epoch {epoch}: Loss = {loss.numpy()}")
+            if (epoch + 1) % print_interval == 0:
+                print(f"Epoch {epoch + 1}: Loss = {loss.numpy()}")
 
     def predict(self, X):
         return self.model.predict(X)

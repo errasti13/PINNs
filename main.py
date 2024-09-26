@@ -5,39 +5,37 @@ from problem.Wave import WaveEquation
 from plots import *
 
 def main():
-    # Create the Burgers' equation problem
-    equation = WaveEquation()
-
-    # Define the domain
-    x_range = (-1, 1)
-    t_range = (0, 1)
-
-    # Generate data
-    data  = equation.generate_data(x_range, t_range, N0=100, Nf=10000, sampling_method='uniform')
-
-    # Create the PINN model
+    eq = 'Burgers'
+    
     pinn = PINN()
 
-    # Train the model
-    pinn.train(equation.loss_function, data, epochs=10000, print_interval=1000)
+    # Mapping equation types to their respective classes and parameters
+    equations = {
+        'Wave': (WaveEquation, (-1, 1), (0, 1), 'uniform'),
+        'Heat': (HeatEquation2D, (-1, 1), (-1, 1), 'random'),
+        'Burgers': (BurgersEquation, (-1, 1), (0, 1), 'random'),
+    }
 
-    Nx = 1000
-    Nt = 10000
+    if eq not in equations:
+        raise ValueError(f"Unsupported equation type: {eq}")
 
-    # Prediction grid
-    x_pred = np.linspace(x_range[0], x_range[1], 100)[:, None].astype(np.float32)
-    t_pred = np.linspace(t_range[0], t_range[1], 100)[:, None].astype(np.float32)
-    X_pred, T_pred = np.meshgrid(x_pred, t_pred)
+    equation_class, x_range, t_range, sampling_method = equations[eq]
+    equation = equation_class()
 
-    uPred = pinn.model.predict(np.hstack((X_pred.flatten()[:, None], T_pred.flatten()[:, None]))) 
-    
-    x_num = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
-    t_num = np.linspace(t_range[0], t_range[1], Nt + 1)[:, None].astype(np.float32)
-    X_num, T_num = np.meshgrid(x_num, t_num)
+    if eq == 'Heat':
+        data = equation.generate_data(x_range, y_range=(-1, 1), N0=100, Nf=10000, sampling_method=sampling_method)
+    else:
+        data = equation.generate_data(x_range, t_range, N0=100, Nf=10000, sampling_method=sampling_method)
 
-    uNumeric = equation.numericalSolution(x_range, t_range, Nx, Nt) #Numerical solution to the Burguers equation
+    pinn.train(equation.loss_function, data, epochs=10000 if eq == 'Burgers' else 3000, print_interval=1000)
 
-    plot = Plot(uPred, X_pred, T_pred, uNumeric, X_num, T_num)
+    if eq == 'Heat':
+        uPred, X_pred, Y_pred, uNumeric, X_num, Y_num = equation.predict(pinn, x_range, (-1, 1))
+        plot = Plot(uPred, X_pred, Y_pred, uNumeric, X_num, Y_num)
+    else:
+        uPred, X_pred, T_pred, uNumeric, X_num, T_num = equation.predict(pinn, x_range, t_range)
+        plot = Plot(uPred, X_pred, T_pred, uNumeric, X_num, T_num)
+
     plot.contour_plot()
 
 if __name__ == "__main__":

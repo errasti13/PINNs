@@ -88,6 +88,23 @@ class BurgersEquation:
         f_loss = tf.reduce_mean(tf.square(f))
         
         return u0_loss+ uBc0_loss + uBc1_loss + f_loss
+     
+    def predict(self, pinn, x_range, t_range, Nx=1000, Nt=10000):
+        # Prediction grid
+        x_pred = np.linspace(x_range[0], x_range[1], 100)[:, None].astype(np.float32)
+        t_pred = np.linspace(t_range[0], t_range[1], 100)[:, None].astype(np.float32)
+        X_pred, T_pred = np.meshgrid(x_pred, t_pred)
+
+        # Predict solution using the trained PINN model
+        uPred = pinn.model.predict(np.hstack((X_pred.flatten()[:, None], T_pred.flatten()[:, None])))
+
+        # Numerical solution for comparison
+        x_num = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
+        t_num = np.linspace(t_range[0], t_range[1], Nt + 1)[:, None].astype(np.float32)
+        X_num, T_num = np.meshgrid(x_num, t_num)
+        uNumeric = self.numericalSolution(x_range, t_range, Nx, Nt)
+
+        return uPred, X_pred, T_pred, uNumeric, X_num, T_num
     
     def numericalSolution(self, xRange, tRange, Nx, Nt):
         # Parameters
