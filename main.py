@@ -1,27 +1,28 @@
 from pinns import PINN
 from problem.Burgers import BurgersEquation
 from problem.Heat import HeatEquation2D
+from problem.Wave import WaveEquation
 from plots import *
 
 def main():
     # Create the Burgers' equation problem
-    burgers_eq = BurgersEquation()
+    equation = WaveEquation()
 
     # Define the domain
-    x_range = (-8, 8)
-    t_range = (0, 8)
+    x_range = (-1, 1)
+    t_range = (0, 1)
 
     # Generate data
-    data  = burgers_eq.generate_data(x_range, t_range, N0=100, Nf=10000, sampling_method='uniform')
+    data  = equation.generate_data(x_range, t_range, N0=100, Nf=10000, sampling_method='uniform')
 
     # Create the PINN model
     pinn = PINN()
 
     # Train the model
-    pinn.train(burgers_eq.loss_function, data, epochs=10000, print_interval=1000)
+    pinn.train(equation.loss_function, data, epochs=10000, print_interval=1000)
 
-    Nx = 5000
-    Nt = 25000
+    Nx = 1000
+    Nt = 10000
 
     # Prediction grid
     x_pred = np.linspace(x_range[0], x_range[1], 100)[:, None].astype(np.float32)
@@ -34,7 +35,7 @@ def main():
     t_num = np.linspace(t_range[0], t_range[1], Nt + 1)[:, None].astype(np.float32)
     X_num, T_num = np.meshgrid(x_num, t_num)
 
-    uNumeric = burgers_eq.numericalSolution(x_range, t_range, Nx, Nt) #Numerical solution to the Burguers equation
+    uNumeric = equation.numericalSolution(x_range, t_range, Nx, Nt) #Numerical solution to the Burguers equation
 
     plot = Plot(uPred, X_pred, T_pred, uNumeric, X_num, T_num)
     plot.contour_plot()

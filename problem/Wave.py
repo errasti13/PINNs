@@ -110,8 +110,9 @@ class WaveEquation:
             raise ValueError("The solution may be unstable. Consider reducing dt or increasing dx.")
 
         # Initial condition for displacement and velocity
-        _, _, u_initial = self.getInitialSolution(Nx, x_min, x_max, t_min)
-        _, v_initial = self.ic_library.getCondition(Nx, t_min, x_min, condition='velocity')  # Adjust this method to get initial velocity
+        _, _, u_initial = self.getInitialSolution(Nx, x_min, x_max, t_min, initialCondition='senoidal')
+        _, v_initial = self.ic_library.getCondition(Nx, t_min, x_min, condition='zeros') # Adjust this method to get initial velocity
+
 
         # Ensure initial conditions are correctly shaped
         if u_initial.shape != (Nx, 1) or v_initial.shape != (Nx, 1):
@@ -135,7 +136,7 @@ class WaveEquation:
 
         # First time step using initial velocity
         u_new = np.zeros_like(u)
-        u_new[1:-1] = (u[1:-1] + dt * v_initial[1:-1] +
+        u_new[1:-1] = (u[1:-1] + dt * v_initial[1:-1, 0] +
                     0.5 * (c * dt / dx)**2 * (u[2:] - 2 * u[1:-1] + u[:-2]))
         u_new[0] = uBc1[0]
         u_new[-1] = uBc2[0]
