@@ -88,4 +88,34 @@ class Plot:
         idx = np.where(diff == min_diff)[0]
         return idx
 
+class PlotNSSolution:
+    def __init__(self, u_pred, v_pred, p_pred, X_pred, Y_pred):
+
+        self.X_pred = X_pred
+        self.Y_pred = Y_pred
+
+        self.U_pred = u_pred.reshape(self.X_pred.shape)
+        self.V_pred = v_pred.reshape(self.X_pred.shape)
+        self.P_pred = p_pred.reshape(self.X_pred.shape)
+
+    def contour_plot(self):
+        plt.figure(figsize=(10, 6))
+
+        plt.subplot(1, 3, 1)
+        plt.contourf(self.X_pred, self.Y_pred, self.U_pred, levels=100, cmap='jet')
+        plt.colorbar()
+        plt.title('U')
+        
+        plt.subplot(1, 3, 2)
+        plt.contourf(self.X_pred, self.Y_pred, self.V_pred, levels=100, cmap='jet')
+        plt.colorbar()
+        plt.title('V')
+
+        plt.subplot(1, 3, 3)
+        plt.contourf(self.X_pred, self.Y_pred, self.P_pred, levels=100, cmap='jet')
+        plt.colorbar()
+        plt.title('P')
+
+        plt.tight_layout()
+        plt.show()
 
