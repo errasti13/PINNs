@@ -99,22 +99,17 @@ class PlotNSSolution:
         self.P_pred = p_pred.reshape(self.X_pred.shape)
 
     def contour_plot(self):
-        plt.figure(figsize=(20, 6))
+        plt.figure(figsize=(16, 8))
 
-        plt.subplot(1, 3, 1)
+        plt.subplot(2, 1, 1)
         plt.contourf(self.X_pred, self.Y_pred, self.U_pred, levels=200, cmap='jet')
         plt.colorbar()
         plt.title('U')
         
-        plt.subplot(1, 3, 2)
+        plt.subplot(2, 1, 2)
         plt.contourf(self.X_pred, self.Y_pred, self.V_pred, levels=200, cmap='jet')
         plt.colorbar()
         plt.title('V')
-
-        plt.subplot(1, 3, 3)
-        plt.contourf(self.X_pred, self.Y_pred, self.P_pred, levels=200, cmap='jet')
-        plt.colorbar()
-        plt.title('P')
 
         plt.tight_layout()
         plt.show()
