@@ -44,7 +44,7 @@ class SteadyNavierStokes2D:
             return tf.reduce_mean(tf.square(uPred - uBc)), tf.reduce_mean(tf.square(vPred - vBc))
         
         else:
-            return tf.constant(0.0)
+            return tf.constant(0.0), tf.constant(0.0)
         
     def loss_function(self, model, data):
         # Unpack the data
@@ -122,7 +122,6 @@ class SteadyNavierStokes2D:
 
         return uPred, vPred, pPred, X_pred, Y_pred
 
-# Example problem class, like LidDrivenCavity
 class LidDrivenCavity(SteadyNavierStokes2D):
     
     def __init__(self, nu=0.01):
@@ -164,17 +163,16 @@ class LidDrivenCavity(SteadyNavierStokes2D):
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
 
-        # Boundary conditions for u, v (velocity components) and pressure p
-        uBc_left = np.zeros_like(xBc_left, dtype=np.float32)  # No-slip condition on left boundary
+        uBc_left = np.zeros_like(xBc_left, dtype=np.float32) 
         vBc_left = np.zeros_like(xBc_left, dtype=np.float32)
 
-        uBc_right = np.zeros_like(xBc_right, dtype=np.float32)  # No-slip condition on right boundary
+        uBc_right = np.zeros_like(xBc_right, dtype=np.float32)
         vBc_right = np.zeros_like(xBc_right, dtype=np.float32)
 
-        uBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)  # No-slip condition at bottom
+        uBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32) 
         vBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
 
-        uBc_top = np.ones_like(yBc_top, dtype=np.float32)  # Inlet condition at top (u = 1)
+        uBc_top = np.ones_like(yBc_top, dtype=np.float32)
         vBc_top = np.zeros_like(yBc_top, dtype=np.float32)
 
         return xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top
@@ -230,7 +228,7 @@ class ChannelFlow(SteadyNavierStokes2D):
         uBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
         vBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
 
-        uBc_top = np.zeros_like(yBc_top, dtype=np.float32)
+        uBc_top = np.ones_like(yBc_top, dtype=np.float32)
         vBc_top = np.zeros_like(yBc_top, dtype=np.float32)
 
         return xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top
