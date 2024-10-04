@@ -2,4 +2,4 @@
 __pycache__/
 
 # Ignore all .pyc files (compiled Python files)
-*.pyc
+*pyc
