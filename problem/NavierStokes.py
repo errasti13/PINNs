@@ -181,13 +181,19 @@ class LidDrivenCavity(SteadyNavierStokes2D):
     
 
 class ChannelFlow(SteadyNavierStokes2D):
+    
+    def __init__(self, nu=0.01):
+        super().__init__(nu)
+        self.problemTag = "ChannelFlow"
 
-    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, 
-                             sampling_method='uniform', enforce_outlet=True):
+        return
+    
+    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
         if sampling_method == 'random':
+            # Random sampling of boundary points
             xBc_left = np.full((N0, 1), x_min, dtype=np.float32)
             yBc_left = np.random.rand(N0, 1) * (y_max - y_min) + y_min
-
+            
             xBc_right = np.full((N0, 1), x_max, dtype=np.float32)
             yBc_right = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
@@ -197,6 +203,7 @@ class ChannelFlow(SteadyNavierStokes2D):
             yBc_top = np.full((N0, 1), y_max, dtype=np.float32)
             xBc_top = np.random.rand(N0, 1) * (x_max - x_min) + x_min
         elif sampling_method == 'uniform':
+            # Uniform grid of boundary points
             yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
             xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
 
@@ -211,32 +218,21 @@ class ChannelFlow(SteadyNavierStokes2D):
 
             yBc_top = np.full_like(xBc, y_max, dtype=np.float32)
             xBc_top = xBc
-
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
 
-        # Boundary conditions for u, v
-        uBc_left = np.ones_like(yBc_left, dtype=np.float32) * (1 - (yBc_left / y_max) ** 2)  # Parabolic inlet
-        vBc_left = np.zeros_like(yBc_left, dtype=np.float32)  # No vertical velocity at inlet
+        uBc_left = np.ones_like(xBc_left, dtype=np.float32) 
+        vBc_left = np.zeros_like(xBc_left, dtype=np.float32)
 
-        if enforce_outlet:
-            # Outlet: no boundary conditions (do-nothing approach)
-            uBc_right = np.zeros_like(xBc_right, dtype=np.float32)
-            vBc_right = np.zeros_like(xBc_right, dtype=np.float32)
-        else:
-            # No boundary condition at the outlet (do nothing)
-            uBc_right = None
-            vBc_right = None
+        uBc_right = None
+        vBc_right = None
 
-        # No-slip conditions for top and bottom
-        uBc_bottom = np.zeros_like(xBc_bottom, dtype=np.float32)
-        vBc_bottom = np.zeros_like(xBc_bottom, dtype=np.float32)
-        
-        uBc_top = np.ones_like(xBc_top, dtype=np.float32)
-        vBc_top = np.zeros_like(xBc_top, dtype=np.float32)
+        uBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
+        vBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
 
-        return (xBc_left, yBc_left, uBc_left, vBc_left,
-                xBc_right, yBc_right, uBc_right, vBc_right,
-                xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom,
-                xBc_top, yBc_top, uBc_top, vBc_top)
+        uBc_top = np.zeros_like(yBc_top, dtype=np.float32)
+        vBc_top = np.zeros_like(yBc_top, dtype=np.float32)
+
+        return xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top
+    
 
