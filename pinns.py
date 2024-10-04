@@ -74,11 +74,7 @@ class PINN:
                 print(f"Epoch {epoch + 1}: Loss = {loss.numpy()}")
 
         plt.ioff()  # Turn off interactive mode
-        plt.show()  # Keep the plot open after training
-
-
-
-
+        plt.close()
 
     def predict(self, X):
         return self.model.predict(X)
