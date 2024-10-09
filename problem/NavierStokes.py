@@ -15,8 +15,7 @@ class SteadyNavierStokes2D:
         y_min, y_max = y_range[0], y_range[1]
 
         # Boundary data (u, v on boundaries)
-        xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, \
-        xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, sampling_method)
+        boundaries = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, sampling_method)
 
         # Collocation points (internal points for solving PDE)
         if sampling_method == 'random':
@@ -26,8 +25,7 @@ class SteadyNavierStokes2D:
             x_f = np.linspace(x_min, x_max, Nf)[:, None].astype(np.float32)
             y_f = np.linspace(y_min, y_max, Nf)[:, None].astype(np.float32)
 
-        return x_f, y_f, xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, \
-               xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top
+        return x_f, y_f, boundaries
     
     def imposeBoundaryCondition(self, uBc, vBc):
         if uBc is not None and vBc is not None:
@@ -46,16 +44,12 @@ class SteadyNavierStokes2D:
         else:
             return tf.constant(0.0), tf.constant(0.0)
         
+    
     def loss_function(self, model, data):
         # Unpack the data
-        x_f, y_f, xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, \
-        xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top = data
+        x_f, y_f, boundaries = data
 
-        # Convert boundary data to tensors
-        uBc_left, vBc_left = self.imposeBoundaryCondition(uBc_left, vBc_left)
-        uBc_right, vBc_right = self.imposeBoundaryCondition(uBc_right, vBc_right)
-        uBc_top, vBc_top = self.imposeBoundaryCondition(uBc_top, vBc_top)
-        uBc_bottom, vBc_bottom = self.imposeBoundaryCondition(uBc_bottom, vBc_bottom)
+        total_loss = 0
 
         with tf.GradientTape(persistent=True) as tape:
             tape.watch([x_f, y_f])
@@ -94,20 +88,23 @@ class SteadyNavierStokes2D:
         f_loss_v = tf.reduce_mean(tf.square(momentum_v))
         continuity_loss = tf.reduce_mean(tf.square(continuity))
 
-        uBc_loss_left, vBc_loss_left = self.computeBoundaryLoss(model, xBc_left, yBc_left, uBc_left, vBc_left)
-        uBc_loss_right, vBc_loss_right = self.computeBoundaryLoss(model, xBc_right, yBc_right, uBc_right, vBc_right)
-        uBc_loss_top, vBc_loss_top = self.computeBoundaryLoss(model, xBc_top, yBc_top, uBc_top, vBc_top)
-        uBc_loss_bottom, vBc_loss_bottom = self.computeBoundaryLoss(model, xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom)
+        total_loss += f_loss_u + f_loss_v + continuity_loss
 
-        # Total loss
-        total_loss = (f_loss_u + f_loss_v + continuity_loss + 
-                        uBc_loss_left + vBc_loss_left +
-                    uBc_loss_right + vBc_loss_right +
-                    uBc_loss_top + vBc_loss_top +
-                    uBc_loss_bottom + vBc_loss_bottom)
+        # Iterate over each boundary
+        for boundary_key, boundary_data in boundaries.items():
+            xBc = boundary_data['x']
+            yBc = boundary_data['y']
+            uBc = boundary_data['u']
+            vBc = boundary_data['v']
+
+            # Convert boundary data to tensors and compute loss
+            uBc_tensor, vBc_tensor = self.imposeBoundaryCondition(uBc, vBc)
+            uBc_loss, vBc_loss = self.computeBoundaryLoss(model, xBc, yBc, uBc_tensor, vBc_tensor)
+
+            # Sum up losses for all boundaries
+            total_loss += uBc_loss + vBc_loss
 
         return total_loss
-
 
     def predict(self, pinn, x_range, y_range, Nx=256, Ny=256):
         x_pred = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
@@ -131,52 +128,54 @@ class LidDrivenCavity(SteadyNavierStokes2D):
         return
     
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
+        boundaries = {
+            'left': {'x': None, 'y': None, 'u': None, 'v': None},
+            'right': {'x': None, 'y': None, 'u': None, 'v': None},
+            'bottom': {'x': None, 'y': None, 'u': None, 'v': None},
+            'top': {'x': None, 'y': None, 'u': None, 'v': None}
+        }
+
         if sampling_method == 'random':
             # Random sampling of boundary points
-            xBc_left = np.full((N0, 1), x_min, dtype=np.float32)
-            yBc_left = np.random.rand(N0, 1) * (y_max - y_min) + y_min
-            
-            xBc_right = np.full((N0, 1), x_max, dtype=np.float32)
-            yBc_right = np.random.rand(N0, 1) * (y_max - y_min) + y_min
+            boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
+            boundaries['left']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
-            yBc_bottom = np.full((N0, 1), y_min, dtype=np.float32)
-            xBc_bottom = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+            boundaries['right']['x'] = np.full((N0, 1), x_max, dtype=np.float32)
+            boundaries['right']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
-            yBc_top = np.full((N0, 1), y_max, dtype=np.float32)
-            xBc_top = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+            boundaries['bottom']['y'] = np.full((N0, 1), y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
+            boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
+            boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
         elif sampling_method == 'uniform':
             # Uniform grid of boundary points
             yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
             xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
 
-            xBc_left = np.full_like(yBc, x_min, dtype=np.float32)
-            yBc_left = yBc
+            boundaries['left']['x'] = np.full_like(yBc, x_min, dtype=np.float32)
+            boundaries['left']['y'] = yBc
 
-            xBc_right = np.full_like(yBc, x_max, dtype=np.float32)
-            yBc_right = yBc
+            boundaries['right']['x'] = np.full_like(yBc, x_max, dtype=np.float32)
+            boundaries['right']['y'] = yBc
 
-            yBc_bottom = np.full_like(xBc, y_min, dtype=np.float32)
-            xBc_bottom = xBc
+            boundaries['bottom']['y'] = np.full_like(xBc, y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = xBc
 
-            yBc_top = np.full_like(xBc, y_max, dtype=np.float32)
-            xBc_top = xBc
+            boundaries['top']['y'] = np.full_like(xBc, y_max, dtype=np.float32)
+            boundaries['top']['x'] = xBc
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
 
-        uBc_left = np.zeros_like(xBc_left, dtype=np.float32) 
-        vBc_left = np.zeros_like(xBc_left, dtype=np.float32)
+        for key in boundaries:
+            boundaries[key]['u'] = np.zeros_like(boundaries[key]['x'], dtype=np.float32) 
+            boundaries[key]['v'] = np.zeros_like(boundaries[key]['y'], dtype=np.float32)
 
-        uBc_right = np.zeros_like(xBc_right, dtype=np.float32)
-        vBc_right = np.zeros_like(xBc_right, dtype=np.float32)
+        boundaries['top']['u'] = np.ones_like(boundaries['top']['u'], dtype=np.float32)
 
-        uBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32) 
-        vBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
+        return boundaries
 
-        uBc_top = np.ones_like(yBc_top, dtype=np.float32)
-        vBc_top = np.zeros_like(yBc_top, dtype=np.float32)
-
-        return xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top
-    
 
 class ChannelFlow(SteadyNavierStokes2D):
     
@@ -187,50 +186,134 @@ class ChannelFlow(SteadyNavierStokes2D):
         return
     
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
+        boundaries = {
+            'left': {'x': None, 'y': None, 'u': None, 'v': None},
+            'right': {'x': None, 'y': None, 'u': None, 'v': None},
+            'bottom': {'x': None, 'y': None, 'u': None, 'v': None},
+            'top': {'x': None, 'y': None, 'u': None, 'v': None}
+        }
+
         if sampling_method == 'random':
             # Random sampling of boundary points
-            xBc_left = np.full((N0, 1), x_min, dtype=np.float32)
-            yBc_left = np.random.rand(N0, 1) * (y_max - y_min) + y_min
-            
-            xBc_right = np.full((N0, 1), x_max, dtype=np.float32)
-            yBc_right = np.random.rand(N0, 1) * (y_max - y_min) + y_min
+            boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
+            boundaries['left']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
-            yBc_bottom = np.full((N0, 1), y_min, dtype=np.float32)
-            xBc_bottom = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+            boundaries['right']['x'] = np.full((N0, 1), x_max, dtype=np.float32)
+            boundaries['right']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
-            yBc_top = np.full((N0, 1), y_max, dtype=np.float32)
-            xBc_top = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+            boundaries['bottom']['y'] = np.full((N0, 1), y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
+            boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
+            boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
         elif sampling_method == 'uniform':
             # Uniform grid of boundary points
             yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
             xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
 
-            xBc_left = np.full_like(yBc, x_min, dtype=np.float32)
-            yBc_left = yBc
+            boundaries['left']['x'] = np.full_like(yBc, x_min, dtype=np.float32)
+            boundaries['left']['y'] = yBc
 
-            xBc_right = np.full_like(yBc, x_max, dtype=np.float32)
-            yBc_right = yBc
+            boundaries['right']['x'] = np.full_like(yBc, x_max, dtype=np.float32)
+            boundaries['right']['y'] = yBc
 
-            yBc_bottom = np.full_like(xBc, y_min, dtype=np.float32)
-            xBc_bottom = xBc
+            boundaries['bottom']['y'] = np.full_like(xBc, y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = xBc
 
-            yBc_top = np.full_like(xBc, y_max, dtype=np.float32)
-            xBc_top = xBc
+            boundaries['top']['y'] = np.full_like(xBc, y_max, dtype=np.float32)
+            boundaries['top']['x'] = xBc
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
 
-        uBc_left = np.ones_like(xBc_left, dtype=np.float32) 
-        vBc_left = np.zeros_like(xBc_left, dtype=np.float32)
+        # Now, define u and v boundary conditions for each side
+        for key in boundaries:
+            boundaries[key]['u'] = np.zeros_like(boundaries[key]['x'], dtype=np.float32) 
+            boundaries[key]['v'] = np.zeros_like(boundaries[key]['y'], dtype=np.float32)
+        
+        # Special case for top boundary - velocity u = 1
+        boundaries['left']['u'] = np.ones_like(boundaries['top']['u'], dtype=np.float32)
+        boundaries['top']['u'] = np.ones_like(boundaries['top']['u'], dtype=np.float32)
 
-        uBc_right = None
-        vBc_right = None
+        boundaries['right']['u'] = None
+        boundaries['right']['v '] = None
 
-        uBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
-        vBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
+        return boundaries
 
-        uBc_top = np.ones_like(yBc_top, dtype=np.float32)
-        vBc_top = np.zeros_like(yBc_top, dtype=np.float32)
-
-        return xBc_left, yBc_left, uBc_left, vBc_left, xBc_right, yBc_right, uBc_right, vBc_right, xBc_bottom, yBc_bottom, uBc_bottom, vBc_bottom, xBc_top, yBc_top, uBc_top, vBc_top
+class FlatPlate(SteadyNavierStokes2D):
     
+    def __init__(self, nu=0.01, c = 1, AoA = 0.0, uInlet = 1.0):
+        super().__init__(nu)
+        self.problemTag = "ChannelFlow"
+        self.c = c
+        self.AoA = AoA * 180 / np.pi
+        self.uInlet = uInlet
 
+        return
+    
+    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform', xLE = 0.0, yLE = 0.0):
+        boundaries = {
+            'left': {'x': None, 'y': None, 'u': None, 'v': None},
+            'right': {'x': None, 'y': None, 'u': None, 'v': None},
+            'bottom': {'x': None, 'y': None, 'u': None, 'v': None},
+            'top': {'x': None, 'y': None, 'u': None, 'v': None},
+            'plate': {'x': None, 'y': None, 'u': None, 'v': None}
+        }
+
+        if sampling_method == 'random':
+            # Random sampling of boundary points
+            boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
+            boundaries['left']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
+
+            boundaries['right']['x'] = np.full((N0, 1), x_max, dtype=np.float32)
+            boundaries['right']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
+
+            boundaries['bottom']['y'] = np.full((N0, 1), y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
+            boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
+            boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
+            boundaries['plate']['y'] = np.full((N0, 1), yLE, dtype=np.float32) 
+            boundaries['plate']['x'] = np.random.rand(N0, 1) * self.c + xLE
+
+        elif sampling_method == 'uniform':
+            # Uniform grid of boundary points
+            yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
+            xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
+
+            boundaries['left']['x'] = np.full_like(yBc, x_min, dtype=np.float32)
+            boundaries['left']['y'] = yBc
+
+            boundaries['right']['x'] = np.full_like(yBc, x_max, dtype=np.float32)
+            boundaries['right']['y'] = yBc
+
+            boundaries['bottom']['y'] = np.full_like(xBc, y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = xBc
+
+            boundaries['top']['y'] = np.full_like(xBc, y_max, dtype=np.float32)
+            boundaries['top']['x'] = xBc
+
+            boundaries['plate']['y'] = np.full((N0, 1), yLE, dtype=np.float32) 
+            boundaries['plate']['x'] = np.linspace(xLE, xLE + self.c, N0)[:, None].astype(np.float32)
+        else:
+            raise ValueError("sampling_method should be 'random' or 'uniform'")
+
+        # Now, define u and v boundary conditions for each side
+        for key in boundaries:
+            boundaries[key]['u'] = np.zeros_like(boundaries[key]['x'], dtype=np.float32) 
+            boundaries[key]['v'] = np.zeros_like(boundaries[key]['y'], dtype=np.float32)
+        
+        boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
+        boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
+
+        boundaries['top']['u'] = None
+        boundaries['top']['v'] = None
+
+        boundaries['right']['u'] = None
+        boundaries['right']['v'] = None
+
+        boundaries['bottom']['u'] = None
+        boundaries['bottom']['v'] = None
+
+        return boundaries
