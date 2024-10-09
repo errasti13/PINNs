@@ -27,26 +27,33 @@ class SteadyNavierStokes2D:
 
         return x_f, y_f, boundaries
     
-    def imposeBoundaryCondition(self, uBc, vBc):
-        if uBc is not None and vBc is not None:
-            uBc = tf.convert_to_tensor(uBc, dtype=tf.float32)
-            vBc = tf.convert_to_tensor(vBc, dtype=tf.float32)
+    def imposeBoundaryCondition(self, uBc, vBc, pBc):
+        def convert_if_not_none(tensor):
+            return tf.convert_to_tensor(tensor, dtype=tf.float32) if tensor is not None else None
 
-        return uBc, vBc
+        uBc = convert_if_not_none(uBc)
+        vBc = convert_if_not_none(vBc)
+        pBc = convert_if_not_none(pBc)
+
+        return uBc, vBc, pBc
+
     
-    def computeBoundaryLoss(self, model, xBc, yBc, uBc, vBc):
-        if uBc is not None and vBc is not None:
-            uPred = model(tf.concat([tf.cast(xBc, dtype=tf.float32), tf.cast(yBc, dtype=tf.float32)], axis=1))[:, 0]
-            vPred = model(tf.concat([tf.cast(xBc, dtype=tf.float32), tf.cast(yBc, dtype=tf.float32)], axis=1))[:, 1]
+    def computeBoundaryLoss(self, model, xBc, yBc, uBc, vBc, pBc):
+        def compute_loss(bc, idx):
+            if bc is not None:
+                pred = model(tf.concat([tf.cast(xBc, dtype=tf.float32), tf.cast(yBc, dtype=tf.float32)], axis=1))[:, idx]
+                return tf.reduce_mean(tf.square(pred - bc))
+            else:
+                return tf.constant(0.0)
 
-            return tf.reduce_mean(tf.square(uPred - uBc)), tf.reduce_mean(tf.square(vPred - vBc))
-        
-        else:
-            return tf.constant(0.0), tf.constant(0.0)
+        uBc_loss = compute_loss(uBc, 0)
+        vBc_loss = compute_loss(vBc, 1)
+        pBc_loss = compute_loss(pBc, 2)
+
+        return uBc_loss, vBc_loss, pBc_loss
         
     
     def loss_function(self, model, data):
-        # Unpack the data
         x_f, y_f, boundaries = data
 
         total_loss = 0
@@ -96,13 +103,14 @@ class SteadyNavierStokes2D:
             yBc = boundary_data['y']
             uBc = boundary_data['u']
             vBc = boundary_data['v']
+            pBc = boundary_data['p']
 
             # Convert boundary data to tensors and compute loss
-            uBc_tensor, vBc_tensor = self.imposeBoundaryCondition(uBc, vBc)
-            uBc_loss, vBc_loss = self.computeBoundaryLoss(model, xBc, yBc, uBc_tensor, vBc_tensor)
+            uBc_tensor, vBc_tensor, pBc_tensor = self.imposeBoundaryCondition(uBc, vBc, pBc)
+            uBc_loss, vBc_loss, pBc_loss = self.computeBoundaryLoss(model, xBc, yBc, uBc_tensor, vBc_tensor, pBc_tensor)
 
             # Sum up losses for all boundaries
-            total_loss += uBc_loss + vBc_loss
+            total_loss += uBc_loss + vBc_loss + pBc_loss
 
         return total_loss
 
@@ -253,11 +261,11 @@ class FlatPlate(SteadyNavierStokes2D):
     
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform', xLE = 0.0, yLE = 0.0):
         boundaries = {
-            'left': {'x': None, 'y': None, 'u': None, 'v': None},
-            'right': {'x': None, 'y': None, 'u': None, 'v': None},
-            'bottom': {'x': None, 'y': None, 'u': None, 'v': None},
-            'top': {'x': None, 'y': None, 'u': None, 'v': None},
-            'plate': {'x': None, 'y': None, 'u': None, 'v': None}
+            'left': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'right': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'bottom': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'top': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'plate': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None}
         }
 
         if sampling_method == 'random':
@@ -303,15 +311,20 @@ class FlatPlate(SteadyNavierStokes2D):
         for key in boundaries:
             boundaries[key]['u'] = np.zeros_like(boundaries[key]['x'], dtype=np.float32) 
             boundaries[key]['v'] = np.zeros_like(boundaries[key]['y'], dtype=np.float32)
+            boundaries[key]['p'] = None
         
         boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
         boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
+
+        print(boundaries['left']['u'])
 
         boundaries['top']['u'] = None
         boundaries['top']['v'] = None
 
         boundaries['right']['u'] = None
         boundaries['right']['v'] = None
+        boundaries['right']['p'] = np.zeros_like(boundaries['right']['x'], dtype=np.float32)  # If you want a pressure outlet
+
 
         boundaries['bottom']['u'] = None
         boundaries['bottom']['v'] = None
