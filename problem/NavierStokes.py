@@ -309,13 +309,13 @@ class FlatPlate(SteadyNavierStokes2D):
 
         # Now, define u and v boundary conditions for each side
         for key in boundaries:
-            boundaries[key]['u'] = np.zeros_like(boundaries[key]['x'], dtype=np.float32) 
-            boundaries[key]['v'] = np.zeros_like(boundaries[key]['y'], dtype=np.float32)
+            boundaries[key]['u'] = tf.zeros_like(boundaries[key]['x'], dtype=tf.float32) 
+            boundaries[key]['v'] = tf.zeros_like(boundaries[key]['x'], dtype=tf.float32)
             boundaries[key]['p'] = None
         
-        boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
-        boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
-        boundaries['left']['p'] = np.zeros_like(boundaries['right']['x'], dtype=np.float32)
+        boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['left']['u'], dtype=np.float32)
+        boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['left']['u'], dtype=np.float32)
+        boundaries['left']['p'] = tf.zeros_like(boundaries['right']['x'], dtype=np.float32)
 
         boundaries['top']['u'] = None
         boundaries['top']['v'] = None
@@ -325,5 +325,8 @@ class FlatPlate(SteadyNavierStokes2D):
 
         boundaries['bottom']['u'] = None
         boundaries['bottom']['v'] = None
+
+        boundaries['plate']['u'] = tf.zeros_like(boundaries['plate']['u'], dtype=np.float32)
+        boundaries['plate']['v'] = tf.zeros_like(boundaries['plate']['v'], dtype=np.float32)
 
         return boundaries
