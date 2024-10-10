@@ -101,16 +101,27 @@ class PlotNSSolution:
     def contour_plot(self):
         plt.figure(figsize=(16, 8))
 
-        plt.subplot(2, 1, 1)
+        # Coordinates for the plate (x from 0 to 1, y fixed at 0)
+        xPlate = np.linspace(0.0, 1.0, 1000)[:, None].astype(np.float32)
+        yPlate = np.full((1000, 1), 0.0, dtype=np.float32)
+
+        plt.subplot(3, 1, 1)
         plt.contourf(self.X_pred, self.Y_pred, self.U_pred, levels=200, cmap='jet')
+        plt.plot(xPlate, yPlate, color='black', linewidth=3)  # Thick black line
         plt.colorbar()
         plt.title('U')
-        
-        plt.subplot(2, 1, 2)
+
+        plt.subplot(3, 1, 2)
         plt.contourf(self.X_pred, self.Y_pred, self.V_pred, levels=200, cmap='jet')
+        plt.plot(xPlate, yPlate, color='black', linewidth=3)  # Thick black line
         plt.colorbar()
         plt.title('V')
 
+        plt.subplot(3, 1, 3)
+        plt.contourf(self.X_pred, self.Y_pred, self.P_pred, levels=200, cmap='jet')
+        plt.plot(xPlate, yPlate, color='black', linewidth=3)  # Thick black line
+        plt.colorbar()
+        plt.title('P')
+
         plt.tight_layout()
         plt.show()
-
