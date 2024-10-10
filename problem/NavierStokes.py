@@ -254,7 +254,7 @@ class FlatPlate(SteadyNavierStokes2D):
         super().__init__(nu)
         self.problemTag = "ChannelFlow"
         self.c = c
-        self.AoA = AoA * 180 / np.pi
+        self.AoA = AoA * np.pi / 180
         self.uInlet = uInlet
 
         return
@@ -315,16 +315,13 @@ class FlatPlate(SteadyNavierStokes2D):
         
         boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
         boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*np.ones_like(boundaries['left']['u'], dtype=np.float32)
-
-        print(boundaries['left']['u'])
+        boundaries['left']['p'] = np.zeros_like(boundaries['right']['x'], dtype=np.float32)
 
         boundaries['top']['u'] = None
         boundaries['top']['v'] = None
 
         boundaries['right']['u'] = None
         boundaries['right']['v'] = None
-        boundaries['right']['p'] = np.zeros_like(boundaries['right']['x'], dtype=np.float32)  # If you want a pressure outlet
-
 
         boundaries['bottom']['u'] = None
         boundaries['bottom']['v'] = None
