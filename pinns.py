@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 
 class PINN:
-    def __init__(self, input_shape=2, output_shape=1, layers=[20, 20, 20], activation='tanh', learning_rate=0.01):
+    def __init__(self, input_shape=2, output_shape=1, layers=[20, 20, 20], activation='tanh', learning_rate=0.01, eq = 'FlatPlate'):
         self.model = self.create_model(input_shape, output_shape, layers, activation)
         self.model.summary()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate_schedule(learning_rate))
+        self.eq = eq
         
 
     def create_model(self, input_shape,  output_shape, layers, activation):
@@ -34,7 +35,7 @@ class PINN:
 
 
 
-    def train(self, loss_function, data, epochs=50000, print_interval=100):
+    def train(self, loss_function, data, epochs=50000, print_interval=100, autosave_interval = 10000):
         loss_history = []
         epoch_history = []
 
@@ -72,6 +73,9 @@ class PINN:
                 plt.pause(0.001)  # Pause to update the figure
 
                 print(f"Epoch {epoch + 1}: Loss = {loss.numpy()}")
+
+            if (epoch + 1) % autosave_interval == 0:
+                self.model.save(f'trainedModels/{self.eq}.tf')
 
         plt.ioff()  # Turn off interactive mode
         plt.close()

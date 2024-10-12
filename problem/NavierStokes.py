@@ -137,10 +137,10 @@ class LidDrivenCavity(SteadyNavierStokes2D):
     
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
         boundaries = {
-            'left': {'x': None, 'y': None, 'u': None, 'v': None},
-            'right': {'x': None, 'y': None, 'u': None, 'v': None},
-            'bottom': {'x': None, 'y': None, 'u': None, 'v': None},
-            'top': {'x': None, 'y': None, 'u': None, 'v': None}
+            'left': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'right': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'bottom': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'top': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None}
         }
 
         if sampling_method == 'random':
@@ -180,7 +180,7 @@ class LidDrivenCavity(SteadyNavierStokes2D):
             boundaries[key]['u'] = np.zeros_like(boundaries[key]['x'], dtype=np.float32) 
             boundaries[key]['v'] = np.zeros_like(boundaries[key]['y'], dtype=np.float32)
 
-        boundaries['top']['u'] = np.ones_like(boundaries['top']['u'], dtype=np.float32)
+        boundaries['top']['u'] = np.ones_like(boundaries['top']['x'], dtype=np.float32)
 
         return boundaries
 
@@ -306,27 +306,21 @@ class FlatPlate(SteadyNavierStokes2D):
             boundaries['plate']['x'] = np.linspace(xLE, xLE + self.c, N0)[:, None].astype(np.float32)
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
-
-        # Now, define u and v boundary conditions for each side
-        for key in boundaries:
-            boundaries[key]['u'] = tf.zeros_like(boundaries[key]['x'], dtype=tf.float32) 
-            boundaries[key]['v'] = tf.zeros_like(boundaries[key]['x'], dtype=tf.float32)
-            boundaries[key]['p'] = None
         
-        boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['left']['u'], dtype=np.float32)
-        boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['left']['u'], dtype=np.float32)
+        boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['left']['x'], dtype=np.float32)
+        boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['left']['y'], dtype=np.float32)
         boundaries['left']['p'] = tf.zeros_like(boundaries['right']['x'], dtype=np.float32)
 
-        boundaries['top']['u'] = None
-        boundaries['top']['v'] = None
+        boundaries['top']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['top']['x'], dtype=np.float32)
+        boundaries['top']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['top']['y'], dtype=np.float32)
 
         boundaries['right']['u'] = None
         boundaries['right']['v'] = None
 
-        boundaries['bottom']['u'] = None
-        boundaries['bottom']['v'] = None
+        boundaries['bottom']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['bottom']['x'], dtype=np.float32)
+        boundaries['bottom']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['bottom']['y'], dtype=np.float32)
 
-        boundaries['plate']['u'] = tf.zeros_like(boundaries['plate']['u'], dtype=np.float32)
-        boundaries['plate']['v'] = tf.zeros_like(boundaries['plate']['v'], dtype=np.float32)
+        boundaries['plate']['u'] = tf.zeros_like(boundaries['plate']['x'], dtype=np.float32)
+        boundaries['plate']['v'] = tf.zeros_like(boundaries['plate']['y'], dtype=np.float32)
 
         return boundaries
