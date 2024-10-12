@@ -6,7 +6,7 @@ from problem.NavierStokes import *
 from plots import *
 
 def main():
-    eq = 'FlatPlate'
+    eq = 'FlowOverAirfoil'
     
     pinn = PINN(output_shape=3, eq=eq)
 
@@ -17,7 +17,8 @@ def main():
         'Burgers': (BurgersEquation, (-1, 1), (0, 1), 'random'),
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'ChannelFlow': (ChannelFlow, (0, 10), (0, 1), 'random'),
-        'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random')
+        'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random'),
+        'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random')
     }
 
     if eq not in equations:
@@ -31,13 +32,13 @@ def main():
         else:
             equation = equation_class()
 
-        data = equation.generate_data(x_range, y_range, N0=6000, Nf=6000, sampling_method=sampling_method)
+        data = equation.generate_data(x_range, y_range, N0=1000, Nf=1000, sampling_method=sampling_method)
     else:
         equation_class, x_range, t_range, sampling_method = equations[eq]
         equation = equation_class()
         data = equation.generate_data(x_range, t_range, N0=1000, Nf=100, sampling_method=sampling_method)
 
-    pinn.train(equation.loss_function, data, print_interval=100, epochs=100000)
+    pinn.train(equation.loss_function, data, print_interval=100, epochs=100)
 
     if eq == 'Heat':
         uPred, X_pred, Y_pred, uNumeric, X_num, Y_num = equation.predict(pinn, x_range, y_range)

@@ -324,3 +324,71 @@ class FlatPlate(SteadyNavierStokes2D):
         boundaries['plate']['v'] = tf.zeros_like(boundaries['plate']['y'], dtype=np.float32)
 
         return boundaries
+
+import numpy as np
+
+class FlowOverAirfoil(SteadyNavierStokes2D):
+    
+    def __init__(self, nu=0.01, c=1, AoA=0.0, uInlet=1.0, airfoil_coords=None):
+        super().__init__(nu)
+        self.problemTag = "FlowOverAirfoil"
+        self.c = c  # Chord length of the airfoil
+        self.AoA = AoA * np.pi / 180  # Angle of attack in radians
+        self.uInlet = uInlet
+        self.airfoil_coords = airfoil_coords if airfoil_coords is not None else self.generate_airfoil_coords()
+
+    def generate_airfoil_coords(self, N=100):
+        # Placeholder: Define or load airfoil coordinates here (e.g., NACA 4-digit profile).
+        # In this example, we use a simple flat plate at y = 0, from x = 0 to c.
+        x = np.linspace(0, self.c, N)
+        y = np.zeros_like(x)
+        return np.column_stack((x, y))
+
+    def is_point_inside_airfoil(self, x, y):
+        # You can improve this function depending on the airfoil shape.
+        # For now, we'll just use the bounding box of the airfoil.
+        # This checks if (x, y) lies within the airfoil bounds
+        airfoil_min_x = np.min(self.airfoil_coords[:, 0])
+        airfoil_max_x = np.max(self.airfoil_coords[:, 0])
+        airfoil_min_y = np.min(self.airfoil_coords[:, 1])
+        airfoil_max_y = np.max(self.airfoil_coords[:, 1])
+        
+        return (airfoil_min_x <= x <= airfoil_max_x) and (airfoil_min_y <= y <= airfoil_max_y)
+
+    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
+        # Boundary conditions similar to the previous example
+        boundaries = {
+            'left': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'right': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'bottom': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'top': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
+            'airfoil': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None}
+        }
+
+        # Example implementation of boundary conditions goes here
+        # Similar to FlatPlate, with details depending on your setup
+
+        return boundaries
+    
+    def generate_data(self, x_range, y_range, N0=100, Nf=10000, sampling_method='random'):
+        x_min, x_max = x_range[0], x_range[1]
+        y_min, y_max = y_range[0], y_range[1]
+
+        # Boundary data (u, v on boundaries)
+        boundaries = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, sampling_method)
+
+        # Collocation points (internal points for solving PDE)
+        x_f, y_f = [], []
+        while len(x_f) < Nf:
+            x_candidate = (np.random.rand() * (x_max - x_min) + x_min).astype(np.float32)
+            y_candidate = (np.random.rand() * (y_max - y_min) + y_min).astype(np.float32)
+            
+            # Check if the point is outside the airfoil
+            if not self.is_point_inside_airfoil(x_candidate, y_candidate):
+                x_f.append(x_candidate)
+                y_f.append(y_candidate)
+
+        x_f = np.array(x_f, dtype=np.float32).reshape(-1, 1)
+        y_f = np.array(y_f, dtype=np.float32).reshape(-1, 1)
+
+        return x_f, y_f, boundaries
