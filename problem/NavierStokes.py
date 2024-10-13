@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
 class SteadyNavierStokes2D:
     
@@ -325,38 +327,44 @@ class FlatPlate(SteadyNavierStokes2D):
 
         return boundaries
 
-import numpy as np
-
 class FlowOverAirfoil(SteadyNavierStokes2D):
     
     def __init__(self, nu=0.01, c=1, AoA=0.0, uInlet=1.0, airfoil_coords=None):
         super().__init__(nu)
         self.problemTag = "FlowOverAirfoil"
-        self.c = c  # Chord length of the airfoil
-        self.AoA = AoA * np.pi / 180  # Angle of attack in radians
+        self.c = c  
+        self.AoA = AoA * np.pi / 180 
         self.uInlet = uInlet
-        self.airfoil_coords = airfoil_coords if airfoil_coords is not None else self.generate_airfoil_coords()
+        self.generate_airfoil_coords()
 
-    def generate_airfoil_coords(self, N=100):
-        # Placeholder: Define or load airfoil coordinates here (e.g., NACA 4-digit profile).
-        # In this example, we use a simple flat plate at y = 0, from x = 0 to c.
+    def generate_airfoil_coords(self, N=100, thickness=0.12):
         x = np.linspace(0, self.c, N)
-        y = np.zeros_like(x)
-        return np.column_stack((x, y))
+        x_normalized = x / self.c
+        y = 5 * thickness * (0.2969 * np.sqrt(x_normalized) 
+                                - 0.1260 * x_normalized 
+                                - 0.3516 * x_normalized**2 
+                                + 0.2843 * x_normalized**3 
+                                - 0.1015 * x_normalized**4)
+        self.xAirfoil = x.reshape(-1, 1)
+        self.yAirfoil = y.reshape(-1, 1)
+
+        return
 
     def is_point_inside_airfoil(self, x, y):
-        # You can improve this function depending on the airfoil shape.
-        # For now, we'll just use the bounding box of the airfoil.
-        # This checks if (x, y) lies within the airfoil bounds
-        airfoil_min_x = np.min(self.airfoil_coords[:, 0])
-        airfoil_max_x = np.max(self.airfoil_coords[:, 0])
-        airfoil_min_y = np.min(self.airfoil_coords[:, 1])
-        airfoil_max_y = np.max(self.airfoil_coords[:, 1])
-        
-        return (airfoil_min_x <= x <= airfoil_max_x) and (airfoil_min_y <= y <= airfoil_max_y)
+        if x < 0 or x > self.c:
+            return False
 
-    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
-        # Boundary conditions similar to the previous example
+        idx = (np.abs(self.xAirfoil - x)).argmin()
+
+        y_upper = self.yAirfoil[idx]
+        y_lower = -y_upper  # Assuming symmetry for the NACA0012 airfoil
+
+        if y_lower <= y <= y_upper:
+            return True
+
+        return False
+
+    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform', xLE = 0.0, yLE = 0.0):
         boundaries = {
             'left': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
             'right': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
@@ -364,9 +372,61 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
             'top': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
             'airfoil': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None}
         }
+    
+        boundaries['airfoil']['y'] = self.yAirfoil
+        boundaries['airfoil']['x'] = self.xAirfoil
 
-        # Example implementation of boundary conditions goes here
-        # Similar to FlatPlate, with details depending on your setup
+        if sampling_method == 'random':
+            # Random sampling of boundary points
+            boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
+            boundaries['left']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
+
+            boundaries['right']['x'] = np.full((N0, 1), x_max, dtype=np.float32)
+            boundaries['right']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
+
+            boundaries['bottom']['y'] = np.full((N0, 1), y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
+            boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
+            boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
+        elif sampling_method == 'uniform':
+            # Uniform grid of boundary points
+            yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
+            xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
+
+            boundaries['left']['x'] = np.full_like(yBc, x_min, dtype=np.float32)
+            boundaries['left']['y'] = yBc
+
+            boundaries['right']['x'] = np.full_like(yBc, x_max, dtype=np.float32)
+            boundaries['right']['y'] = yBc
+
+            boundaries['bottom']['y'] = np.full_like(xBc, y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = xBc
+
+            boundaries['top']['y'] = np.full_like(xBc, y_max, dtype=np.float32)
+            boundaries['top']['x'] = xBc
+
+            boundaries['plate']['y'] = np.full((N0, 1), yLE, dtype=np.float32) 
+            boundaries['plate']['x'] = np.linspace(xLE, xLE + self.c, N0)[:, None].astype(np.float32)
+        else:
+            raise ValueError("sampling_method should be 'random' or 'uniform'")
+        
+        boundaries['left']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['left']['x'], dtype=np.float32)
+        boundaries['left']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['left']['y'], dtype=np.float32)
+        boundaries['left']['p'] = tf.zeros_like(boundaries['right']['x'], dtype=np.float32)
+
+        boundaries['top']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['top']['x'], dtype=np.float32)
+        boundaries['top']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['top']['y'], dtype=np.float32)
+
+        boundaries['right']['u'] = None
+        boundaries['right']['v'] = None
+
+        boundaries['bottom']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['bottom']['x'], dtype=np.float32)
+        boundaries['bottom']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['bottom']['y'], dtype=np.float32)
+
+        boundaries['airfoil']['u'] = tf.zeros_like(boundaries['airfoil']['x'], dtype=np.float32)
+        boundaries['airfoil']['v'] = tf.zeros_like(boundaries['airfoil']['y'], dtype=np.float32)
 
         return boundaries
     
@@ -374,16 +434,13 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
         x_min, x_max = x_range[0], x_range[1]
         y_min, y_max = y_range[0], y_range[1]
 
-        # Boundary data (u, v on boundaries)
         boundaries = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, sampling_method)
 
-        # Collocation points (internal points for solving PDE)
         x_f, y_f = [], []
         while len(x_f) < Nf:
-            x_candidate = (np.random.rand() * (x_max - x_min) + x_min).astype(np.float32)
-            y_candidate = (np.random.rand() * (y_max - y_min) + y_min).astype(np.float32)
+            x_candidate = (np.random.rand(1) * (x_max - x_min) + x_min).astype(np.float32)
+            y_candidate = (np.random.rand(1) * (y_max - y_min) + y_min).astype(np.float32)
             
-            # Check if the point is outside the airfoil
             if not self.is_point_inside_airfoil(x_candidate, y_candidate):
                 x_f.append(x_candidate)
                 y_f.append(y_candidate)
@@ -392,3 +449,42 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
         y_f = np.array(y_f, dtype=np.float32).reshape(-1, 1)
 
         return x_f, y_f, boundaries
+
+    def test_is_point_inside_airfoil(self, x_range, y_range, N_test=1000):
+        x_min, x_max = x_range[0], x_range[1]
+        y_min, y_max = y_range[0], y_range[1]
+
+        x_test = np.linspace(x_min, x_max, int(np.sqrt(N_test)))
+        y_test = np.linspace(y_min, y_max, int(np.sqrt(N_test)))
+        X, Y = np.meshgrid(x_test, y_test)
+        X_flat = X.flatten()
+        Y_flat = Y.flatten()
+
+        # Evaluate the airfoil boundary
+        inside = []
+        outside = []
+        for x, y in zip(X_flat, Y_flat):
+            if self.is_point_inside_airfoil(x, y):
+                inside.append([x, y])
+            else:
+                outside.append([x, y])
+
+        inside = np.array(inside)
+        outside = np.array(outside)
+
+        # Plotting
+        plt.figure(figsize=(10, 5))
+        plt.plot(self.xAirfoil, self.yAirfoil, color='black', label='Airfoil Upper Surface')
+        plt.plot(self.xAirfoil, -self.yAirfoil, color='black', label='Airfoil Lower Surface')
+        
+        if len(inside) > 0:
+            plt.scatter(inside[:, 0], inside[:, 1], color='green', s=2, label='Inside')
+        if len(outside) > 0:
+            plt.scatter(outside[:, 0], outside[:, 1], color='red', s=2, label='Outside')
+        
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.legend()
+        plt.title("Test of 'is_point_inside_airfoil' Function")
+        plt.show()
+
