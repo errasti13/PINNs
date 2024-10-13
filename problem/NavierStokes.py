@@ -6,20 +6,17 @@ from scipy.interpolate import interp1d
 class SteadyNavierStokes2D:
     
     def __init__(self, nu=0.01):
-        self.nu = nu  # Kinematic viscosity (Reynolds number dependent)
+        self.nu = nu
 
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
-        # Boundary conditions will be implemented by each specific problem
         raise NotImplementedError("Boundary condition method must be implemented in a subclass.")
     
     def generate_data(self, x_range, y_range, N0=100, Nf=10000, sampling_method='random'):
         x_min, x_max = x_range[0], x_range[1]
         y_min, y_max = y_range[0], y_range[1]
 
-        # Boundary data (u, v on boundaries)
         boundaries = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, sampling_method)
 
-        # Collocation points (internal points for solving PDE)
         if sampling_method == 'random':
             x_f = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)
             y_f = (np.random.rand(Nf, 1) * (y_max - y_min) + y_min).astype(np.float32)
@@ -69,7 +66,6 @@ class SteadyNavierStokes2D:
             v_pred = uvp_pred[:, 1]
             p_pred = uvp_pred[:, 2]
 
-            # Compute derivatives using automatic differentiation
             u_x = tape.gradient(u_pred, x_f)
             u_y = tape.gradient(u_pred, y_f)
             v_x = tape.gradient(v_pred, x_f)
@@ -77,29 +73,23 @@ class SteadyNavierStokes2D:
             p_x = tape.gradient(p_pred, x_f)
             p_y = tape.gradient(p_pred, y_f)
 
-            # Second-order derivatives
             u_xx = tape.gradient(u_x, x_f)
             u_yy = tape.gradient(u_y, y_f)
             v_xx = tape.gradient(v_x, x_f)
             v_yy = tape.gradient(v_y, y_f)
 
-        # Incompressibility condition (continuity equation)
         continuity = u_x + v_y
 
-        # X-momentum equation
         momentum_u = u_pred * u_x + v_pred * u_y + p_x - self.nu * (u_xx + u_yy)
 
-        # Y-momentum equation
         momentum_v = u_pred * v_x + v_pred * v_y + p_y - self.nu * (v_xx + v_yy)
 
-        # Collocation losses (PDE residuals)
         f_loss_u = tf.reduce_mean(tf.square(momentum_u))
         f_loss_v = tf.reduce_mean(tf.square(momentum_v))
         continuity_loss = tf.reduce_mean(tf.square(continuity))
 
         total_loss += f_loss_u + f_loss_v + continuity_loss
 
-        # Iterate over each boundary
         for boundary_key, boundary_data in boundaries.items():
             xBc = boundary_data['x']
             yBc = boundary_data['y']
@@ -107,11 +97,9 @@ class SteadyNavierStokes2D:
             vBc = boundary_data['v']
             pBc = boundary_data['p']
 
-            # Convert boundary data to tensors and compute loss
             uBc_tensor, vBc_tensor, pBc_tensor = self.imposeBoundaryCondition(uBc, vBc, pBc)
             uBc_loss, vBc_loss, pBc_loss = self.computeBoundaryLoss(model, xBc, yBc, uBc_tensor, vBc_tensor, pBc_tensor)
 
-            # Sum up losses for all boundaries
             total_loss += uBc_loss + vBc_loss + pBc_loss
 
         return total_loss
@@ -121,10 +109,8 @@ class SteadyNavierStokes2D:
         y_pred = np.linspace(y_range[0], y_range[1], Ny)[:, None].astype(np.float32)
         X_pred, Y_pred = np.meshgrid(x_pred, y_pred)
 
-        # Predict velocity (u, v) and pressure (p) using the trained model
         predictions = pinn.predict(np.hstack((X_pred.flatten()[:, None], Y_pred.flatten()[:, None])))
 
-        # Unpack directly after checking shape
         uPred, vPred, pPred = predictions[:, 0], predictions[:, 1], predictions[:, 2]
 
         return uPred, vPred, pPred, X_pred, Y_pred
@@ -447,6 +433,8 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
 
         x_f = np.array(x_f, dtype=np.float32).reshape(-1, 1)
         y_f = np.array(y_f, dtype=np.float32).reshape(-1, 1)
+
+        self.test_is_point_inside_airfoil(x_range, y_range, 10000)
 
         return x_f, y_f, boundaries
 
