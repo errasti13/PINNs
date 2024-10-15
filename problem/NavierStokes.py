@@ -171,76 +171,13 @@ class LidDrivenCavity(SteadyNavierStokes2D):
 
         return boundaries
 
-
-class ChannelFlow(SteadyNavierStokes2D):
-    
-    def __init__(self, nu=0.01):
-        super().__init__(nu)
-        self.problemTag = "ChannelFlow"
-
-        return
-    
-    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
-        boundaries = {
-            'left': {'x': None, 'y': None, 'u': None, 'v': None},
-            'right': {'x': None, 'y': None, 'u': None, 'v': None},
-            'bottom': {'x': None, 'y': None, 'u': None, 'v': None},
-            'top': {'x': None, 'y': None, 'u': None, 'v': None}
-        }
-
-        if sampling_method == 'random':
-            # Random sampling of boundary points
-            boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
-            boundaries['left']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
-
-            boundaries['right']['x'] = np.full((N0, 1), x_max, dtype=np.float32)
-            boundaries['right']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
-
-            boundaries['bottom']['y'] = np.full((N0, 1), y_min, dtype=np.float32)
-            boundaries['bottom']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
-
-            boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
-            boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
-
-        elif sampling_method == 'uniform':
-            # Uniform grid of boundary points
-            yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
-            xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
-
-            boundaries['left']['x'] = np.full_like(yBc, x_min, dtype=np.float32)
-            boundaries['left']['y'] = yBc
-
-            boundaries['right']['x'] = np.full_like(yBc, x_max, dtype=np.float32)
-            boundaries['right']['y'] = yBc
-
-            boundaries['bottom']['y'] = np.full_like(xBc, y_min, dtype=np.float32)
-            boundaries['bottom']['x'] = xBc
-
-            boundaries['top']['y'] = np.full_like(xBc, y_max, dtype=np.float32)
-            boundaries['top']['x'] = xBc
-        else:
-            raise ValueError("sampling_method should be 'random' or 'uniform'")
-
-        # Now, define u and v boundary conditions for each side
-        for key in boundaries:
-            boundaries[key]['u'] = np.zeros_like(boundaries[key]['x'], dtype=np.float32) 
-            boundaries[key]['v'] = np.zeros_like(boundaries[key]['y'], dtype=np.float32)
-        
-        # Special case for top boundary - velocity u = 1
-        boundaries['left']['u'] = np.ones_like(boundaries['top']['u'], dtype=np.float32)
-        boundaries['top']['u'] = np.ones_like(boundaries['top']['u'], dtype=np.float32)
-
-        boundaries['right']['u'] = None
-        boundaries['right']['v '] = None
-
-        return boundaries
-
 class FlatPlate(SteadyNavierStokes2D):
     
     def __init__(self, nu=0.01, c = 1, AoA = 0.0, uInlet = 1.0):
         super().__init__(nu)
         self.problemTag = "ChannelFlow"
         self.xLE = 0.0
+        self.yLE = 0.0
         self.c = c
         self.AoA = AoA * np.pi / 180
         self.uInlet = uInlet
@@ -446,29 +383,27 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
         return x_f, y_f, boundaries
     
     def predict(self, pinn, x_range, y_range, Nx=256, Ny=256):
-        x_min, x_max = x_range.min(), x_range.max()
-        y_min, y_max = y_range.min(), y_range.max()
-        
-        x_pred = np.linspace(x_min, x_max, Nx, dtype=np.float32)
-        y_pred = np.linspace(y_min, y_max, Ny, dtype=np.float32)
-        X_pred, Y_pred = np.meshgrid(x_pred, y_pred)
+        x_min, x_max = x_range[0], x_range[1]
+        y_min, y_max = y_range[0], y_range[1]
+        Nt = Nx * Ny  
 
-        X_flat = X_pred.flatten()[:, None]
-        Y_flat = Y_pred.flatten()[:, None]
-        valid_points = [not self.is_point_inside_airfoil(x, y) for x, y in zip(X_flat, Y_flat)]
-        
-        X_filtered = X_flat[valid_points]
-        Y_filtered = Y_flat[valid_points]
+        x_pred, y_pred = [], []
+        while len(x_pred) < Nt:
+            x_candidate = (np.random.rand(1) * (x_max - x_min) + x_min).astype(np.float32)
+            y_candidate = (np.random.rand(1) * (y_max - y_min) + y_min).astype(np.float32)
 
-        prediction_points = np.hstack((X_filtered, Y_filtered))
-        
-        predictions = pinn.predict(prediction_points)
+            if not self.is_point_inside_airfoil(x_candidate, y_candidate):
+                x_pred.append(x_candidate)
+                y_pred.append(y_candidate)
 
-        uPred = predictions[:, 0]
-        vPred = predictions[:, 1]
-        pPred = predictions[:, 2]
+        x_pred = np.array(x_pred, dtype=np.float32).reshape(-1, 1)
+        y_pred = np.array(y_pred, dtype=np.float32).reshape(-1, 1)
 
-        return uPred, vPred, pPred, X_pred, Y_pred
+        predictions = pinn.predict(np.hstack((x_pred.flatten()[:, None], y_pred.flatten()[:, None])))
+
+        uPred, vPred, pPred = predictions[:, 0], predictions[:, 1], predictions[:, 2]
+
+        return uPred, vPred, pPred, x_pred, y_pred
 
 
     def test_is_point_inside_airfoil(self, x_range, y_range, N_test=1000):
@@ -509,3 +444,44 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
         plt.title("Test of 'is_point_inside_airfoil' Function")
         plt.show()
 
+    def plot(self, X_pred, Y_pred, uPred, vPred, pPred):
+        plt.figure(figsize=(16, 8))
+
+        # Plot uPred
+        plt.subplot(3, 1, 1)
+        plt.plot(self.xAirfoil, self.yAirfoil, color='black')
+        plt.plot(self.xAirfoil, -self.yAirfoil, color='black')
+        plt.scatter(X_pred, Y_pred, c=uPred, cmap='jet', s=2)
+        plt.xlim(X_pred.min(), X_pred.max())
+        plt.ylim(Y_pred.min(), Y_pred.max())
+        plt.colorbar()
+        plt.title('Predicted U Velocity')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+
+        # Plot vPred
+        plt.subplot(3, 1, 2)
+        plt.plot(self.xAirfoil, self.yAirfoil, color='black')
+        plt.plot(self.xAirfoil, -self.yAirfoil, color='black')
+        plt.scatter(X_pred, Y_pred, c=vPred, cmap='jet', s=2)
+        plt.xlim(X_pred.min(), X_pred.max())
+        plt.ylim(Y_pred.min(), Y_pred.max())
+        plt.colorbar()
+        plt.title('Predicted V Velocity')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+
+        # Plot pPred (Pressure)
+        plt.subplot(3, 1, 3)
+        plt.plot(self.xAirfoil, self.yAirfoil, color='black')
+        plt.plot(self.xAirfoil, -self.yAirfoil, color='black')
+        plt.scatter(X_pred, Y_pred, c=pPred, cmap='jet', s=2)
+        plt.xlim(X_pred.min(), X_pred.max())
+        plt.ylim(Y_pred.min(), Y_pred.max())
+        plt.colorbar()
+        plt.title('Predicted Pressure')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+
+        plt.tight_layout()
+        plt.show()
