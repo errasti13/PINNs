@@ -6,7 +6,7 @@ from problem.NavierStokes import *
 from plots import *
 
 def main():
-    eq = 'FlowOverAirfoill'
+    eq = 'Heat'
     
     pinn = PINN(output_shape=3, eq=eq)
 
