@@ -60,7 +60,6 @@ class SteadyNavierStokes2D:
         with tf.GradientTape(persistent=True) as tape:
             tape.watch([x_f, y_f])
 
-            # Predict u, v, p at collocation points
             uvp_pred = model(tf.concat([x_f, y_f], axis=1))
             u_pred = uvp_pred[:, 0]
             v_pred = uvp_pred[:, 1]
@@ -241,9 +240,22 @@ class FlatPlate(SteadyNavierStokes2D):
     def __init__(self, nu=0.01, c = 1, AoA = 0.0, uInlet = 1.0):
         super().__init__(nu)
         self.problemTag = "ChannelFlow"
+        self.xLE = 0.0
         self.c = c
         self.AoA = AoA * np.pi / 180
         self.uInlet = uInlet
+
+        self.generate_airfoil_coords()
+
+        return
+    
+    def generate_airfoil_coords(self, N=100):
+        x = np.random.rand(N, 1) * self.c + self.xLE
+
+        y =  np.full((N, 1), self.yLE, dtype=np.float32)
+        
+        self.xAirfoil = x.reshape(-1, 1)
+        self.yAirfoil = y.reshape(-1, 1)
 
         return
     
@@ -255,6 +267,9 @@ class FlatPlate(SteadyNavierStokes2D):
             'top': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None},
             'plate': {'x': None, 'y': None, 'u': None, 'v': None, 'p': None}
         }
+
+        boundaries['plate']['y'] = self.yAirfoil
+        boundaries['plate']['x'] = self.xAirfoil
 
         if sampling_method == 'random':
             # Random sampling of boundary points
@@ -269,9 +284,6 @@ class FlatPlate(SteadyNavierStokes2D):
 
             boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
             boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
-
-            boundaries['plate']['y'] = np.full((N0, 1), yLE, dtype=np.float32) 
-            boundaries['plate']['x'] = np.random.rand(N0, 1) * self.c + xLE
 
         elif sampling_method == 'uniform':
             # Uniform grid of boundary points
@@ -289,9 +301,6 @@ class FlatPlate(SteadyNavierStokes2D):
 
             boundaries['top']['y'] = np.full_like(xBc, y_max, dtype=np.float32)
             boundaries['top']['x'] = xBc
-
-            boundaries['plate']['y'] = np.full((N0, 1), yLE, dtype=np.float32) 
-            boundaries['plate']['x'] = np.linspace(xLE, xLE + self.c, N0)[:, None].astype(np.float32)
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
         
@@ -434,9 +443,33 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
         x_f = np.array(x_f, dtype=np.float32).reshape(-1, 1)
         y_f = np.array(y_f, dtype=np.float32).reshape(-1, 1)
 
-        self.test_is_point_inside_airfoil(x_range, y_range, 10000)
-
         return x_f, y_f, boundaries
+    
+    def predict(self, pinn, x_range, y_range, Nx=256, Ny=256):
+        x_min, x_max = x_range.min(), x_range.max()
+        y_min, y_max = y_range.min(), y_range.max()
+        
+        x_pred = np.linspace(x_min, x_max, Nx, dtype=np.float32)
+        y_pred = np.linspace(y_min, y_max, Ny, dtype=np.float32)
+        X_pred, Y_pred = np.meshgrid(x_pred, y_pred)
+
+        X_flat = X_pred.flatten()[:, None]
+        Y_flat = Y_pred.flatten()[:, None]
+        valid_points = [not self.is_point_inside_airfoil(x, y) for x, y in zip(X_flat, Y_flat)]
+        
+        X_filtered = X_flat[valid_points]
+        Y_filtered = Y_flat[valid_points]
+
+        prediction_points = np.hstack((X_filtered, Y_filtered))
+        
+        predictions = pinn.predict(prediction_points)
+
+        uPred = predictions[:, 0]
+        vPred = predictions[:, 1]
+        pPred = predictions[:, 2]
+
+        return uPred, vPred, pPred, X_pred, Y_pred
+
 
     def test_is_point_inside_airfoil(self, x_range, y_range, N_test=1000):
         x_min, x_max = x_range[0], x_range[1]
