@@ -8,98 +8,128 @@ class HeatEquation2D:
         self.problemTag = "HeatEquation"
 
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
+        boundaries = {
+            'left': {'x': None, 'y': None, 'u': None},
+            'right': {'x': None, 'y': None, 'u': None},
+            'bottom': {'x': None, 'y': None, 'u': None},
+            'top': {'x': None, 'y': None, 'u': None},
+        }
+
         if sampling_method == 'random':
-            xBc_left = np.full((N0, 1), x_min, dtype=np.float32)
-            yBc_left = (np.random.rand(N0, 1) * (y_max - y_min) + y_min).astype(np.float32)
+            # Random sampling of boundary points
+            boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
+            boundaries['left']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
-            xBc_right = np.full((N0, 1), x_max, dtype=np.float32)
-            yBc_right = (np.random.rand(N0, 1) * (y_max - y_min) + y_min).astype(np.float32)
+            boundaries['right']['x'] = np.full((N0, 1), x_max, dtype=np.float32)
+            boundaries['right']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
-            yBc_bottom = np.full((N0, 1), y_min, dtype=np.float32)
-            xBc_bottom = (np.random.rand(N0, 1) * (x_max - x_min) + x_min).astype(np.float32)
+            boundaries['bottom']['y'] = np.full((N0, 1), y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
 
-            yBc_top = np.full((N0, 1), y_max, dtype=np.float32)
-            xBc_top = (np.random.rand(N0, 1) * (x_max - x_min) + x_min).astype(np.float32)
+            boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
+            boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
+
         elif sampling_method == 'uniform':
+            # Uniform grid of boundary points
             yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
             xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
 
-            xBc_left = np.full_like(yBc, x_min, dtype=np.float32)
-            yBc_left = yBc
+            boundaries['left']['x'] = np.full_like(yBc, x_min, dtype=np.float32)
+            boundaries['left']['y'] = yBc
 
-            xBc_right = np.full_like(yBc, x_max, dtype=np.float32)
-            yBc_right = yBc
+            boundaries['right']['x'] = np.full_like(yBc, x_max, dtype=np.float32)
+            boundaries['right']['y'] = yBc
 
-            yBc_bottom = np.full_like(xBc, y_min, dtype=np.float32)
-            xBc_bottom = xBc
+            boundaries['bottom']['y'] = np.full_like(xBc, y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = xBc
 
-            yBc_top = np.full_like(xBc, y_max, dtype=np.float32)
-            xBc_top = xBc
+            boundaries['top']['y'] = np.full_like(xBc, y_max, dtype=np.float32)
+            boundaries['top']['x'] = xBc
         else:
             raise ValueError("sampling_method should be 'random' or 'uniform'")
+        
+        boundaries['left']['u']    = tf.zeros_like(boundaries['left']['x'], dtype=np.float32)
+        boundaries['right']['u']   = tf.zeros_like(boundaries['right']['x'], dtype=np.float32)
+        boundaries['top']['u']     = tf.zeros_like(boundaries['top']['x'], dtype=np.float32)
+        boundaries['bottom']['u']  = tf.ones_like(boundaries['bottom']['x'], dtype=np.float32)
 
-        uBc_left = np.zeros_like(xBc_left, dtype=np.float32)
-        uBc_right = np.zeros_like(xBc_right, dtype=np.float32)
-        uBc_bottom = np.zeros_like(yBc_bottom, dtype=np.float32)
-        uBc_top = np.ones_like(yBc_top, dtype=np.float32)
+        return boundaries
+    
+    def generate_data(self, x_range, y_range, N0=100, Nf=10000, sampling_method='random'):
+        x_min, x_max = x_range[0], x_range[1]
+        y_min, y_max = y_range[0], y_range[1]
 
-        return xBc_left, yBc_left, uBc_left, xBc_right, yBc_right, uBc_right, xBc_bottom, yBc_bottom, uBc_bottom, xBc_top, yBc_top, uBc_top
+        boundaries = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, sampling_method)
 
-    def generate_data(self, x_range, y_range, N0=100, Nf=10000, sampling_method='uniform'):
-        x_min, x_max = x_range
-        y_min, y_max = y_range
+        x_f, y_f = [], []
+        while len(x_f) < Nf:
+            x_candidate = (np.random.rand(1) * (x_max - x_min) + x_min).astype(np.float32)
+            y_candidate = (np.random.rand(1) * (y_max - y_min) + y_min).astype(np.float32)
+            
+            x_f.append(x_candidate)
+            y_f.append(y_candidate)
 
-        xBc_left, yBc_left, uBc_left, xBc_right, yBc_right, uBc_right, xBc_bottom, yBc_bottom, uBc_bottom, xBc_top, yBc_top, uBc_top = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, sampling_method)
+        x_f = np.array(x_f, dtype=np.float32).reshape(-1, 1)
+        y_f = np.array(y_f, dtype=np.float32).reshape(-1, 1)
 
-        x_f = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)
-        y_f = (np.random.rand(Nf, 1) * (y_max - y_min) + y_min).astype(np.float32)
+        return x_f, y_f, boundaries
+    
+    def imposeBoundaryCondition(self, uBc):
+        def convert_if_not_none(tensor):
+            return tf.convert_to_tensor(tensor, dtype=tf.float32) if tensor is not None else None
 
-        return (x_f, y_f, xBc_left, yBc_left, uBc_left, xBc_right, yBc_right, uBc_right, xBc_bottom, yBc_bottom, uBc_bottom, xBc_top, yBc_top, uBc_top)
+        uBc = convert_if_not_none(uBc)
+
+        return uBc
+
+    def computeBoundaryLoss(self, model, xBc, yBc, uBc):
+        def compute_loss(bc):
+            if bc is not None:
+                pred = model(tf.concat([tf.cast(xBc, dtype=tf.float32), tf.cast(yBc, dtype=tf.float32)], axis=1))[:, 0]
+                return tf.reduce_mean(tf.square(pred - bc))
+            else:
+                return tf.constant(0.0)
+
+        uBc_loss = compute_loss(uBc)
+
+        return uBc_loss
 
     def loss_function(self, model, data):
-        x_f, y_f, xBc_left, yBc_left, uBc_left, xBc_right, yBc_right, uBc_right, xBc_bottom, yBc_bottom, uBc_bottom, xBc_top, yBc_top, uBc_top = data
+        x_f, y_f, boundaries = data
 
-        x_f = tf.convert_to_tensor(x_f, dtype=tf.float32)
-        y_f = tf.convert_to_tensor(y_f, dtype=tf.float32)
-
-        xBc_left = tf.convert_to_tensor(xBc_left, dtype=tf.float32)
-        yBc_left = tf.convert_to_tensor(yBc_left, dtype=tf.float32)
-        uBc_left = tf.convert_to_tensor(uBc_left, dtype=tf.float32)
-
-        xBc_right = tf.convert_to_tensor(xBc_right, dtype=tf.float32)
-        yBc_right = tf.convert_to_tensor(yBc_right, dtype=tf.float32)
-        uBc_right = tf.convert_to_tensor(uBc_right, dtype=tf.float32)
-
-        xBc_bottom = tf.convert_to_tensor(xBc_bottom, dtype=tf.float32)
-        yBc_bottom = tf.convert_to_tensor(yBc_bottom, dtype=tf.float32)
-        uBc_bottom = tf.convert_to_tensor(uBc_bottom, dtype=tf.float32)
-
-        xBc_top = tf.convert_to_tensor(xBc_top, dtype=tf.float32)
-        yBc_top = tf.convert_to_tensor(yBc_top, dtype=tf.float32)
-        uBc_top = tf.convert_to_tensor(uBc_top, dtype=tf.float32)
+        total_loss = 0
 
         with tf.GradientTape(persistent=True) as tape:
-            tape.watch([x_f, y_f, xBc_left, yBc_left, xBc_right, yBc_right, xBc_bottom, yBc_bottom, xBc_top, yBc_top])
+            tape.watch([x_f, y_f])
 
             u_pred = model(tf.concat([x_f, y_f], axis=1))
-            uBc_left_pred = model(tf.concat([xBc_left, yBc_left], axis=1))
-            uBc_right_pred = model(tf.concat([xBc_right, yBc_right], axis=1))
-            uBc_bottom_pred = model(tf.concat([xBc_bottom, yBc_bottom], axis=1))
-            uBc_top_pred = model(tf.concat([xBc_top, yBc_top], axis=1))
+            u_pred = u_pred[:, 0]
 
             u_x = tape.gradient(u_pred, x_f)
             u_y = tape.gradient(u_pred, y_f)
+
             u_xx = tape.gradient(u_x, x_f)
             u_yy = tape.gradient(u_y, y_f)
 
+        # Calculate the internal loss (residual loss) and reduce to a scalar
         f = u_xx + u_yy
-        uBc_left_loss = tf.reduce_mean(tf.square(uBc_left_pred - uBc_left))
-        uBc_right_loss = tf.reduce_mean(tf.square(uBc_right_pred - uBc_right))
-        uBc_bottom_loss = tf.reduce_mean(tf.square(uBc_bottom_pred - uBc_bottom))
-        uBc_top_loss = tf.reduce_mean(tf.square(uBc_top_pred - uBc_top))
-        f_loss = tf.reduce_mean(tf.square(f))
+        eqLoss = tf.reduce_mean(tf.square(f))  # Reduce to scalar
+        
+        total_loss += eqLoss  # Add internal loss to total_loss
 
-        return uBc_left_loss + uBc_right_loss + uBc_bottom_loss + uBc_top_loss + f_loss
+        # Compute boundary losses
+        for boundary_key, boundary_data in boundaries.items():
+            xBc = boundary_data['x']
+            yBc = boundary_data['y']
+            uBc = boundary_data['u']
+
+            uBc_tensor = self.imposeBoundaryCondition(uBc)
+            uBc_loss = self.computeBoundaryLoss(model, xBc, yBc, uBc_tensor)
+
+            total_loss += uBc_loss
+
+        return total_loss
+
 
     def predict(self, pinn, x_range, y_range, Nx=100, Ny=100):
         # Prediction grid
