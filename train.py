@@ -5,7 +5,7 @@ from problem.Wave import WaveEquation
 from problem.NavierStokes import *
 
 def main():
-    eq = 'Burgers'
+    eq = 'Heat'
     
     equations = {
         'Wave': (WaveEquation, (-1, 1), (0, 1), 'uniform'),

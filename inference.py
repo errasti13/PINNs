@@ -5,7 +5,7 @@ from problem.Wave import WaveEquation
 from problem.NavierStokes import *
 
 def main():
-    eq = 'Burgers'
+    eq = 'Heat'
     
     pinn = PINN(eq=eq)
     equations = {
@@ -37,6 +37,11 @@ def main():
     if eq == 'Burgers':
         equation.predict(pinn, ranges[0], ranges[1], Nx = 100, Nt = 100)
         equation.computeNumerical(ranges[0], ranges[1], Nx = 2000, Nt = 10000)
+        equation.plot()
+
+    if eq == 'Heat':
+        equation.predict(pinn, ranges[0], ranges[1], Nx = 1000, Ny = 1000)
+        equation.computeNumerical(ranges[0], ranges[1], Nx = 200, Ny = 200)
         equation.plot()
 
 if __name__ == "__main__":

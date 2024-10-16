@@ -1,11 +1,21 @@
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 class HeatEquation2D:
 
     def __init__(self, alpha=0.1):
         self.alpha = alpha
         self.problemTag = "HeatEquation"
+
+        self.solutions = {
+            'uPred': None,
+            'X_pred': None,
+            'Y_pred': None,
+            'uNumeric': None,
+            'X_num': None,
+            'Y_num': None
+        } 
 
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, sampling_method='uniform'):
         boundaries = {
@@ -16,7 +26,6 @@ class HeatEquation2D:
         }
 
         if sampling_method == 'random':
-            # Random sampling of boundary points
             boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
             boundaries['left']['y'] = np.random.rand(N0, 1) * (y_max - y_min) + y_min
 
@@ -30,7 +39,6 @@ class HeatEquation2D:
             boundaries['top']['x'] = np.random.rand(N0, 1) * (x_max - x_min) + x_min
 
         elif sampling_method == 'uniform':
-            # Uniform grid of boundary points
             yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
             xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
 
@@ -50,8 +58,8 @@ class HeatEquation2D:
         
         boundaries['left']['u']    = tf.zeros_like(boundaries['left']['x'], dtype=np.float32)
         boundaries['right']['u']   = tf.zeros_like(boundaries['right']['x'], dtype=np.float32)
-        boundaries['top']['u']     = tf.zeros_like(boundaries['top']['x'], dtype=np.float32)
-        boundaries['bottom']['u']  = tf.ones_like(boundaries['bottom']['x'], dtype=np.float32)
+        boundaries['bottom']['u']     = tf.zeros_like(boundaries['top']['x'], dtype=np.float32)
+        boundaries['top']['u']  = tf.ones_like(boundaries['bottom']['x'], dtype=np.float32)
 
         return boundaries
     
@@ -132,48 +140,52 @@ class HeatEquation2D:
 
 
     def predict(self, pinn, x_range, y_range, Nx=100, Ny=100):
-        # Prediction grid
         x_pred = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
         y_pred = np.linspace(y_range[0], y_range[1], Ny)[:, None].astype(np.float32)
         X_pred, Y_pred = np.meshgrid(x_pred, y_pred)
 
-        # Predict solution using the trained PINN model
         uPred = pinn.model.predict(np.hstack((X_pred.flatten()[:, None], Y_pred.flatten()[:, None])))
 
-        # Numerical solution for comparison
+        self.solutions['uPred'] = uPred
+        self.solutions['X_pred'] = X_pred
+        self.solutions['Y_pred'] = Y_pred
+        
+        return 
+    
+    def computeNumerical(self, x_range, y_range, Nx=1000, Ny=1000):
+
         x_num = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
         y_num = np.linspace(y_range[0], y_range[1], Ny)[:, None].astype(np.float32)
         X_num, Y_num = np.meshgrid(x_num, y_num)
+
         uNumeric = self.numericalSolution(x_range, y_range, Nx, Ny)
-        
-        return uPred, X_pred, Y_pred, uNumeric, X_num, Y_num
+
+        self.solutions['uNumeric'] = uNumeric
+        self.solutions['X_num'] = X_num
+        self.solutions['Y_num'] = Y_num
+
+        return
 
     def numericalSolution(self, xRange, yRange, Nx, Ny):
         x_min, x_max = xRange[0], xRange[1]
         y_min, y_max = yRange[0], yRange[1]
 
-        # Initialize the temperature field
         u = np.zeros((Nx, Ny))
 
-        # Set boundary conditions (example: u = 0 at boundaries)
-        u[:, 0] = 0  # u = 0 at x_min
-        u[:, -1] = 0  # u = 0 at x_max
-        u[0, :] = 0  # u = 0 at y_min
-        u[-1, :] = 1  # u = 0 at y_max
+        u[:, 0] = 0 
+        u[:, -1] = 0  
+        u[0, :] = 0  
+        u[-1, :] = 1  
 
-        # Tolerance and iteration parameters for the iterative solver
         tol = 1e-6
         max_iter = 10000
         iter_count = 0
 
-        # Iterative solver (Gauss-Seidel method)
         while iter_count < max_iter:
             u_old = u[1:-1, 1:-1].copy()
             
-            # Update the solution for interior points
             u[1:-1, 1:-1] = 0.25 * (u[2:, 1:-1] + u[:-2, 1:-1] + u[1:-1, 2:] + u[1:-1, :-2])
             
-            # Compute the error efficiently
             error = np.linalg.norm(u[1:-1, 1:-1] - u_old, ord=2)
 
             iter_count += 1
@@ -188,3 +200,33 @@ class HeatEquation2D:
             print("Warning: Maximum number of iterations reached. Solution may not have converged.")
 
         return u
+    
+    def plot(self):
+        X_num = self.solutions['X_num']
+        T_num = self.solutions['Y_num']
+        U_num = self.solutions['uNumeric'].reshape(X_num.shape)
+        
+        X_pred = self.solutions['X_pred']
+        T_pred = self.solutions['Y_pred']
+        U_pred = self.solutions['uPred'].reshape(X_pred.shape)
+
+        plt.figure(figsize=(14, 6))
+
+        plt.subplot(1, 2, 1)
+        contour_num = plt.contourf(X_num, T_num, U_num, levels=100, cmap='jet')
+        plt.colorbar(contour_num)
+        plt.title('Numerical Solution')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+
+        plt.subplot(1, 2, 2)
+        contour_pred = plt.contourf(X_pred, T_pred, U_pred, levels=100, cmap='jet')
+        plt.colorbar(contour_pred)
+        plt.title('PINN Predicted Solution')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+
+        plt.tight_layout()
+        plt.show()
+
+        return
