@@ -7,7 +7,6 @@ from problem.NavierStokes import *
 def main():
     eq = 'Burgers'
     
-    pinn = PINN(output_shape=3, eq=eq)
     equations = {
         'Wave': (WaveEquation, (-1, 1), (0, 1), 'uniform'),
         'Heat': (HeatEquation2D, (-1, 1), (-1, 1), 'random'),
@@ -24,6 +23,11 @@ def main():
     equation_class = equation_params[0]
     ranges = equation_params[1:3]
     sampling_method = equation_params[3]
+
+    if eq == ['FlatPlate', 'FlowOverAirfoil', 'LidDrivenCavity']:
+        pinn = PINN(output_shape = 3, eq = eq)
+    else:
+        pinn = PINN(eq = eq)
     
     if eq in ['FlatPlate', 'FlowOverAirfoil']:
         AoA = equation_params[4]

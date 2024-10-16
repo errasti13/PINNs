@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 from problem.boundaryCondition import *
 
@@ -7,7 +8,16 @@ class BurgersEquation:
     def __init__(self, nu=0.01 / np.pi):
         self.nu = nu
         self.bc_library = BoundaryConditionLibrary()
-        self.ic_library = InitialConditionsLibrary() 
+        self.ic_library = InitialConditionsLibrary()
+
+        self.solutions = {
+            'uPred': None,
+            'X_pred': None,
+            'T_pred': None,
+            'uNumeric': None,
+            'X_num': None,
+            'T_num': None
+        } 
 
 
     def getInitialSolution(self, N0, x_min, x_max, t_min, sampling_method='uniform'):
@@ -90,52 +100,57 @@ class BurgersEquation:
         return u0_loss+ uBc0_loss + uBc1_loss + f_loss
      
     def predict(self, pinn, x_range, t_range, Nx=1000, Nt=10000):
-        # Prediction grid
-        x_pred = np.linspace(x_range[0], x_range[1], 100)[:, None].astype(np.float32)
-        t_pred = np.linspace(t_range[0], t_range[1], 100)[:, None].astype(np.float32)
+
+        x_pred = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
+        t_pred = np.linspace(t_range[0], t_range[1], Nt)[:, None].astype(np.float32)
         X_pred, T_pred = np.meshgrid(x_pred, t_pred)
 
-        # Predict solution using the trained PINN model
         uPred = pinn.model.predict(np.hstack((X_pred.flatten()[:, None], T_pred.flatten()[:, None])))
 
-        # Numerical solution for comparison
+        self.solutions['uPred'] = uPred
+        self.solutions['X_pred'] = X_pred
+        self.solutions['T_pred'] = T_pred
+
+        return
+    
+    def computeNumerical(self, x_range, t_range, Nx=1000, Nt=10000):
+
         x_num = np.linspace(x_range[0], x_range[1], Nx)[:, None].astype(np.float32)
         t_num = np.linspace(t_range[0], t_range[1], Nt + 1)[:, None].astype(np.float32)
         X_num, T_num = np.meshgrid(x_num, t_num)
+
         uNumeric = self.numericalSolution(x_range, t_range, Nx, Nt)
 
-        return uPred, X_pred, T_pred, uNumeric, X_num, T_num
+        self.solutions['uNumeric'] = uNumeric
+        self.solutions['X_num'] = X_num
+        self.solutions['T_num'] = T_num
+
+        return
+
     
     def numericalSolution(self, xRange, tRange, Nx, Nt):
-        # Parameters
-        nu = self.nu  # Viscosity
+        nu = self.nu
         x_min, x_max = xRange[0], xRange[1]
         t_min, t_max = tRange[0], tRange[1]
 
-        # Discretization
         dx = (x_max - x_min) / (Nx - 1)
         dt = (t_max - t_min) / Nt
 
-        # Stability criterion
         alpha = nu * dt / dx**2
         if alpha > 0.5:
             print("Warning: The solution may be unstable. Consider reducing dt or increasing dx.")
 
-        # Initial condition
         _, _, u_initial = self.getInitialSolution(Nx, x_min, x_max, t_min)
 
-        # Initialize u and the solution matrix
         u = u_initial.copy()
         u_new = np.zeros_like(u)
         u_solution = np.zeros((Nt+1, Nx))
 
-        # Store initial condition
         u_solution[0, :] = u_initial[:, 0]
         
         _, _, uBc1 = self.getBoundaryCondition(Nt, t_min, t_max, x_min, boundaryCondition='zeros')
         _, _, uBc2 = self.getBoundaryCondition(Nt, t_min, t_max, x_max, boundaryCondition='zeros')
 
-        # Time-stepping loop
         for n in range(1, Nt + 1):
             t = n * dt
             
@@ -148,7 +163,37 @@ class BurgersEquation:
 
             u = u_new.copy()
         
-            # Store solution at this time step
             u_solution[n, :] = u[:, 0]
 
         return u_solution
+    
+
+    def plot(self):
+        X_num = self.solutions['X_num']
+        T_num = self.solutions['T_num']
+        U_num = self.solutions['uNumeric'].reshape(X_num.shape)
+        
+        X_pred = self.solutions['X_pred']
+        T_pred = self.solutions['T_pred']
+        U_pred = self.solutions['uPred'].reshape(X_pred.shape)
+
+        plt.figure(figsize=(14, 6))
+
+        plt.subplot(1, 2, 1)
+        contour_num = plt.contourf(X_num, T_num, U_num, levels=100, cmap='jet')
+        plt.colorbar(contour_num)
+        plt.title('Numerical Solution')
+        plt.xlabel('X')
+        plt.ylabel('T')
+
+        plt.subplot(1, 2, 2)
+        contour_pred = plt.contourf(X_pred, T_pred, U_pred, levels=100, cmap='jet')
+        plt.colorbar(contour_pred)
+        plt.title('PINN Predicted Solution')
+        plt.xlabel('X')
+        plt.ylabel('T')
+
+        plt.tight_layout()
+        plt.show()
+
+        return
