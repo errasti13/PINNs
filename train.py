@@ -3,7 +3,6 @@ from problem.Burgers import BurgersEquation
 from problem.Heat import HeatEquation2D
 from problem.Wave import WaveEquation
 from problem.NavierStokes import *
-from plots import *
 
 def main():
     eq = 'Burgers'
@@ -34,6 +33,8 @@ def main():
 
     data = equation.generate_data(*ranges, N0=4000, Nf=4000, sampling_method=sampling_method)
     pinn.train(equation.loss_function, data, print_interval=100, epochs=100000)
+
+    return
 
 if __name__ == "__main__":
     main()
