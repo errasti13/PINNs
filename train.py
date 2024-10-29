@@ -3,9 +3,10 @@ from problem.Burgers import BurgersEquation
 from problem.Heat import HeatEquation2D
 from problem.Wave import WaveEquation
 from problem.NavierStokes import *
+from problem.UnsteadyNavierStokes import *
 
 def main():
-    eq = 'Heat'
+    eq = 'UnsteadyFlowOverAirfoil'
     
     equations = {
         'Wave': (WaveEquation, (-1, 1), (0, 1), 'uniform'),
@@ -13,29 +14,41 @@ def main():
         'Burgers': (BurgersEquation, (-1, 1), (0, 1), 'random'),
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random', 0.0),
-        'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0)
+        'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0),
+        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 1), 'random', 0.0)
     }
 
     if eq not in equations:
         raise ValueError(f"Unsupported equation type: {eq}")
 
-    equation_params = equations[eq]
-    equation_class = equation_params[0]
-    ranges = equation_params[1:3]
-    sampling_method = equation_params[3]
-
-    if eq == ['FlatPlate', 'FlowOverAirfoil', 'LidDrivenCavity']:
-        pinn = PINN(output_shape = 3, eq = eq)
+    if eq in ['UnsteadyFlowOverAirfoil']:
+        equation_params = equations[eq]
+        equation_class = equation_params[0]
+        ranges = equation_params[1:4]
+        sampling_method = equation_params[4]
     else:
-        pinn = PINN(eq = eq)
+        equation_params = equations[eq]
+        equation_class = equation_params[0]
+        ranges = equation_params[1:3]
+        sampling_method = equation_params[3]
+
+    if eq in ['FlatPlate', 'FlowOverAirfoil', 'LidDrivenCavity']:
+        pinn = PINN(output_shape = 3)
+    elif eq in ['UnsteadyFlowOverAirfoil']:
+        pinn = PINN(input_shape = 3, output_shape = 3)
+    else:
+        pinn = PINN()
     
     if eq in ['FlatPlate', 'FlowOverAirfoil']:
         AoA = equation_params[4]
         equation = equation_class(AoA=AoA)
+    elif eq in ['UnsteadyFlowOverAirfoil']:
+        AoA = equation_params[5]
+        equation = equation_class(AoA=AoA)
     else:
         equation = equation_class()
 
-    data = equation.generate_data(*ranges, N0=4000, Nf=4000, sampling_method=sampling_method)
+    data = equation.generate_data(*ranges, N0=100, Nf=100, sampling_method=sampling_method)
     pinn.train(equation.loss_function, data, print_interval=100, epochs=100000)
 
     return

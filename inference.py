@@ -3,9 +3,10 @@ from problem.Burgers import BurgersEquation
 from problem.Heat import HeatEquation2D
 from problem.Wave import WaveEquation
 from problem.NavierStokes import *
+from problem.UnsteadyNavierStokes import *
 
 def main():
-    eq = 'Heat'
+    eq = 'UnsteadyFlowOverAirfoil'
     
     pinn = PINN(eq=eq)
     equations = {
@@ -14,7 +15,8 @@ def main():
         'Burgers': (BurgersEquation, (-1, 1), (0, 1), 'random'),
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random', 0.0),
-        'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0)
+        'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0),
+        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 1), 'random', 0.0)
     }
 
     if eq not in equations:
@@ -28,12 +30,14 @@ def main():
     if eq in ['FlatPlate', 'FlowOverAirfoil']:
         AoA = equation_params[4]
         equation = equation_class(AoA=AoA)
+    elif eq in ['UnsteadyFlowOverAirfoil']:
+        AoA = equation_params[5]
+        equation = equation_class(AoA=AoA)
     else:
         equation = equation_class()
 
     pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}.tf')
 
-    
     if eq == 'Burgers':
         equation.predict(pinn, ranges[0], ranges[1], Nx = 100, Nt = 100)
         equation.computeNumerical(ranges[0], ranges[1], Nx = 2000, Nt = 10000)

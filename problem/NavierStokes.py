@@ -405,45 +405,6 @@ class FlowOverAirfoil(SteadyNavierStokes2D):
 
         return uPred, vPred, pPred, x_pred, y_pred
 
-
-    def test_is_point_inside_airfoil(self, x_range, y_range, N_test=1000):
-        x_min, x_max = x_range[0], x_range[1]
-        y_min, y_max = y_range[0], y_range[1]
-
-        x_test = np.linspace(x_min, x_max, int(np.sqrt(N_test)))
-        y_test = np.linspace(y_min, y_max, int(np.sqrt(N_test)))
-        X, Y = np.meshgrid(x_test, y_test)
-        X_flat = X.flatten()
-        Y_flat = Y.flatten()
-
-        # Evaluate the airfoil boundary
-        inside = []
-        outside = []
-        for x, y in zip(X_flat, Y_flat):
-            if self.is_point_inside_airfoil(x, y):
-                inside.append([x, y])
-            else:
-                outside.append([x, y])
-
-        inside = np.array(inside)
-        outside = np.array(outside)
-
-        # Plotting
-        plt.figure(figsize=(10, 5))
-        plt.plot(self.xAirfoil, self.yAirfoil, color='black', label='Airfoil Upper Surface')
-        plt.plot(self.xAirfoil, -self.yAirfoil, color='black', label='Airfoil Lower Surface')
-        
-        if len(inside) > 0:
-            plt.scatter(inside[:, 0], inside[:, 1], color='green', s=2, label='Inside')
-        if len(outside) > 0:
-            plt.scatter(outside[:, 0], outside[:, 1], color='red', s=2, label='Outside')
-        
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.legend()
-        plt.title("Test of 'is_point_inside_airfoil' Function")
-        plt.show()
-
     def plot(self, X_pred, Y_pred, uPred, vPred, pPred):
         plt.figure(figsize=(16, 8))
 

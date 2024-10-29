@@ -3,11 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 
 class PINN:
-    def __init__(self, input_shape=2, output_shape=1, layers=[20, 20, 20], activation='tanh', learning_rate=0.01, eq = 'FlatPlate'):
+    def __init__(self, input_shape=2, output_shape=1, layers=[20, 20, 20], activation='tanh', learning_rate=0.01):
         self.model = self.create_model(input_shape, output_shape, layers, activation)
         self.model.summary()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate_schedule(learning_rate))
-        self.eq = eq
         
 
     def create_model(self, input_shape,  output_shape, layers, activation):
