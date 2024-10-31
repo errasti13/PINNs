@@ -15,7 +15,7 @@ def main():
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random', 0.0),
         'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0),
-        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 1), 'random', 0.0)
+        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 10), 'random', 0.0)
     }
 
     if eq not in equations:
@@ -33,11 +33,11 @@ def main():
         sampling_method = equation_params[3]
 
     if eq in ['FlatPlate', 'FlowOverAirfoil', 'LidDrivenCavity']:
-        pinn = PINN(output_shape = 3)
+        pinn = PINN(output_shape = 3, eq = eq)
     elif eq in ['UnsteadyFlowOverAirfoil']:
-        pinn = PINN(input_shape = 3, output_shape = 3)
+        pinn = PINN(input_shape = 3, output_shape = 3, eq = eq)
     else:
-        pinn = PINN()
+        pinn = PINN(eq = eq)
     
     if eq in ['FlatPlate', 'FlowOverAirfoil']:
         AoA = equation_params[4]
@@ -48,7 +48,7 @@ def main():
     else:
         equation = equation_class()
 
-    data = equation.generate_data(*ranges, N0=100, Nf=100, sampling_method=sampling_method)
+    data = equation.generate_data(*ranges, N0=1000, Nf=6000, sampling_method=sampling_method)
     pinn.train(equation.loss_function, data, print_interval=100, epochs=100000)
 
     return

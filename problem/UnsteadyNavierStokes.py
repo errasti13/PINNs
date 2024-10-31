@@ -1,6 +1,9 @@
 import numpy as np
 import tensorflow as tf
+
 import matplotlib.pyplot as plt
+from PIL import Image
+import os
 
 class UnsteadyNavierStokes2D:
     
@@ -164,7 +167,7 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
 
         return False
 
-    def getBoundaryCondition(self, N0, Nf, x_min, x_max, y_min, y_max, t_min, t_max, sampling_method='uniform', xLE = 0.0, yLE = 0.0):
+    def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, t_min, t_max, sampling_method='uniform', xLE = 0.0, yLE = 0.0):
         boundaries = {
             'left': {'x': None, 'y': None, 't': None, 'v': None, 'p': None},
             'right':{'x': None, 'y': None, 't': None, 'v': None, 'p': None},
@@ -180,32 +183,32 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
 
         if sampling_method == 'random':
             # Random sampling of boundary points
-            boundaries['left']['x'] = np.full((Nf, 1), x_min, dtype=np.float32)
-            boundaries['left']['y'] = (np.random.rand(Nf, 1) * (y_max - y_min) + y_min).astype(np.float32)
+            boundaries['left']['x'] = np.full((N0, 1), x_min, dtype=np.float32)
+            boundaries['left']['y'] = (np.random.rand(N0, 1) * (y_max - y_min) + y_min).astype(np.float32)
             boundaries['left']['t'] = (np.random.rand(N0, 1) * (t_max - t_min) + t_min).astype(np.float32)
 
-            boundaries['right']['x'] = np.full((Nf, 1), x_max, dtype=np.float32)
-            boundaries['right']['y'] = (np.random.rand(Nf, 1) * (y_max - y_min) + y_min).astype(np.float32)
+            boundaries['right']['x'] = np.full((N0, 1), x_max, dtype=np.float32)
+            boundaries['right']['y'] = (np.random.rand(N0, 1) * (y_max - y_min) + y_min).astype(np.float32)
             boundaries['right']['t'] = (np.random.rand(N0, 1) * (t_max - t_min) + t_min).astype(np.float32)
 
-            boundaries['bottom']['y'] = np.full((Nf, 1), y_min, dtype=np.float32)
-            boundaries['bottom']['x'] = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)
+            boundaries['bottom']['y'] = np.full((N0, 1), y_min, dtype=np.float32)
+            boundaries['bottom']['x'] = (np.random.rand(N0, 1) * (x_max - x_min) + x_min).astype(np.float32)
             boundaries['bottom']['t'] = (np.random.rand(N0, 1) * (t_max - t_min) + t_min).astype(np.float32)
 
-            boundaries['top']['y'] = np.full((Nf, 1), y_max, dtype=np.float32)
-            boundaries['top']['x'] = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)
+            boundaries['top']['y'] = np.full((N0, 1), y_max, dtype=np.float32)
+            boundaries['top']['x'] = (np.random.rand(N0, 1) * (x_max - x_min) + x_min).astype(np.float32)
             boundaries['top']['t'] = (np.random.rand(N0, 1) * (t_max - t_min) + t_min).astype(np.float32)
 
-            boundaries['initial']['y'] = (np.random.rand(Nf, 1) * (y_max - y_min) + y_min).astype(np.float32)
-            boundaries['initial']['x'] = (np.random.rand(Nf, 1) * (x_max - x_min) + x_min).astype(np.float32)
-            boundaries['initial']['t'] = np.full((Nf, 1), t_min, dtype=np.float32).astype(np.float32)
+            boundaries['initial']['y'] = (np.random.rand(N0, 1) * (y_max - y_min) + y_min).astype(np.float32)
+            boundaries['initial']['x'] = (np.random.rand(N0, 1) * (x_max - x_min) + x_min).astype(np.float32)
+            boundaries['initial']['t'] = np.full((N0, 1), t_min, dtype=np.float32).astype(np.float32)
 
-            boundaries['airfoil']['t'] = (np.random.rand(N0, 1) * (t_max - t_min) + t_min).astype(np.float32)
+            boundaries['airfoil']['t'] = (np.random.rand(len(self.xAirfoil), 1) * (t_max - t_min) + t_min).astype(np.float32)
 
         elif sampling_method == 'uniform':
-            yBc = np.linspace(y_min, y_max, Nf)[:, None].astype(np.float32)
-            xBc = np.linspace(x_min, x_max, Nf)[:, None].astype(np.float32)
-            tBc = np.linspace(t_min, t_max, N0)[:, None].astype(np.float32)
+            yBc = np.linspace(y_min, y_max, N0)[:, None].astype(np.float32)
+            xBc = np.linspace(x_min, x_max, N0)[:, None].astype(np.float32)
+            tBc = np.linspace(t_min, t_max, len(self.xAirfoil))[:, None].astype(np.float32)
 
             boundaries['left']['x'] = np.full_like(yBc, x_min, dtype=np.float32)
             boundaries['left']['y'] = yBc
@@ -258,18 +261,19 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         y_min, y_max = y_range[0], y_range[1]
         t_min, t_max = t_range[0], t_range[1]
 
-        boundaries = self.getBoundaryCondition(N0, Nf, x_min, x_max, y_min, y_max, t_min, t_max, sampling_method)
-
+        boundaries = self.getBoundaryCondition(N0, x_min, x_max, y_min, y_max, t_min, t_max, sampling_method)
         x_f, y_f, t_f = [], [], []
+
+        batch_size = 100  # Adjust for faster sampling in bulk
         while len(x_f) < Nf:
-            x_candidate = (np.random.rand(1) * (x_max - x_min) + x_min).astype(np.float32)
-            y_candidate = (np.random.rand(1) * (y_max - y_min) + y_min).astype(np.float32)
-            t_candidate = (np.random.rand(1) * (y_max - y_min) + y_min).astype(np.float32)
-            
-            if not self.is_point_inside_airfoil(x_candidate, y_candidate):
-                x_f.append(x_candidate)
-                y_f.append(y_candidate)
-                t_f.append(t_candidate)
+            x_candidates = (np.random.rand(batch_size, 1) * (x_max - x_min) + x_min).astype(np.float32)
+            y_candidates = (np.random.rand(batch_size, 1) * (y_max - y_min) + y_min).astype(np.float32)
+            t_candidates = (np.random.rand(batch_size, 1) * (t_max - t_min) + t_min).astype(np.float32)
+
+            mask = np.array([not self.is_point_inside_airfoil(x, y) for x, y in zip(x_candidates, y_candidates)], dtype=bool)
+            x_f.extend(x_candidates[mask][:Nf - len(x_f)])
+            y_f.extend(y_candidates[mask][:Nf - len(y_f)])
+            t_f.extend(t_candidates[mask][:Nf - len(t_f)])
 
         x_f = np.array(x_f, dtype=np.float32).reshape(-1, 1)
         y_f = np.array(y_f, dtype=np.float32).reshape(-1, 1)
@@ -277,30 +281,53 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
 
         return x_f, y_f, t_f, boundaries
     
-    def predict(self, pinn, x_range, y_range, Nx=256, Ny=256):
+    def predict(self, pinn, x_range, y_range, t_range, Nx=256, Ny=1256, Nt=50):
         x_min, x_max = x_range[0], x_range[1]
         y_min, y_max = y_range[0], y_range[1]
-        Nt = Nx * Ny  
+        t_min, t_max = t_range[0], t_range[1]
 
-        x_pred, y_pred = [], []
-        while len(x_pred) < Nt:
-            x_candidate = (np.random.rand(1) * (x_max - x_min) + x_min).astype(np.float32)
-            y_candidate = (np.random.rand(1) * (y_max - y_min) + y_min).astype(np.float32)
+        time_points = np.linspace(t_min, t_max, Nt)
 
-            if not self.is_point_inside_airfoil(x_candidate, y_candidate):
-                x_pred.append(x_candidate)
-                y_pred.append(y_candidate)
+        uPred_all, vPred_all, pPred_all, xPred_all, yPred_all, tPred_all = [], [], [], [], [], []
 
-        x_pred = np.array(x_pred, dtype=np.float32).reshape(-1, 1)
-        y_pred = np.array(y_pred, dtype=np.float32).reshape(-1, 1)
+        for t in time_points:
+            x_pred, y_pred = [], []
+            batch_size = 100 
+            Nt = Nx * Ny
 
-        predictions = pinn.predict(np.hstack((x_pred.flatten()[:, None], y_pred.flatten()[:, None])))
+            while len(x_pred) < Nt:
+                x_candidates = (np.random.rand(batch_size, 1) * (x_max - x_min) + x_min).astype(np.float32)
+                y_candidates = (np.random.rand(batch_size, 1) * (y_max - y_min) + y_min).astype(np.float32)
 
-        uPred, vPred, pPred = predictions[:, 0], predictions[:, 1], predictions[:, 2]
+                mask = np.array([not self.is_point_inside_airfoil(x, y) for x, y in zip(x_candidates, y_candidates)], dtype=bool)
+                x_pred.extend(x_candidates[mask][:Nt - len(x_pred)])
+                y_pred.extend(y_candidates[mask][:Nt - len(y_pred)])
 
-        return uPred, vPred, pPred, x_pred, y_pred
+            x_pred = np.array(x_pred, dtype=np.float32).reshape(-1, 1)
+            y_pred = np.array(y_pred, dtype=np.float32).reshape(-1, 1)
+            t_pred = np.full_like(x_pred, t).reshape(-1, 1)
 
-    def plot(self, X_pred, Y_pred, uPred, vPred, pPred):
+            predictions = pinn.predict(np.hstack((x_pred, y_pred, t_pred)))
+            uPred, vPred, pPred = predictions[:, 0], predictions[:, 1], predictions[:, 2]
+
+            uPred_all.append(uPred)
+            vPred_all.append(vPred)
+            pPred_all.append(pPred)
+            xPred_all.append(x_pred[:, 0])
+            yPred_all.append(y_pred[:, 0])
+            tPred_all.append(t_pred[:, 0])
+
+        uPred_all = np.vstack(uPred_all)
+        vPred_all = np.vstack(vPred_all)
+        pPred_all = np.vstack(pPred_all)
+        xPred_all = np.vstack(xPred_all)
+        yPred_all = np.vstack(yPred_all)
+        tPred_all = np.vstack(tPred_all)
+
+        return uPred_all, vPred_all, pPred_all, xPred_all, yPred_all, tPred_all
+
+    def plot(self, uPred, vPred, pPred, X_pred, Y_pred):
+
         plt.figure(figsize=(16, 8))
 
         # Plot uPred
@@ -340,5 +367,26 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         plt.ylabel('Y')
 
         plt.tight_layout()
-        plt.show()
+
+    def create_gif_from_plots(self, uPred, vPred, pPred, X_pred, Y_pred, T_pred, gif_name="output.gif"):
+        from io import BytesIO
+        frames = []
+
+        for i in range(len(T_pred[:, 0])):
+            # Generate the plot
+            self.plot(uPred[i, :], vPred[i, :], pPred[i, :], X_pred[i, :], Y_pred[i, :])
+
+            buf = BytesIO()
+            plt.savefig(buf, format="png")
+            buf.seek(0)
+            frames.append(Image.open(buf))
+            
+            plt.close()
+
+        # Save frames as a GIF
+        frames[0].save(gif_name, save_all=True, append_images=frames[1:], duration=500, loop=0)
+        print(f"GIF saved as {gif_name}")
+
+
+
 

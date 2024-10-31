@@ -28,9 +28,19 @@ def main():
     sampling_method = equation_params[3]
     
     if eq in ['FlatPlate', 'FlowOverAirfoil']:
+        equation_params = equations[eq]
+        equation_class = equation_params[0]
+        ranges = equation_params[1:3]
+        sampling_method = equation_params[3]
+
         AoA = equation_params[4]
         equation = equation_class(AoA=AoA)
     elif eq in ['UnsteadyFlowOverAirfoil']:
+        equation_params = equations[eq]
+        equation_class = equation_params[0]
+        ranges = equation_params[1:4]
+        sampling_method = equation_params[4]
+
         AoA = equation_params[5]
         equation = equation_class(AoA=AoA)
     else:
@@ -47,6 +57,11 @@ def main():
         equation.predict(pinn, ranges[0], ranges[1], Nx = 1000, Ny = 1000)
         equation.computeNumerical(ranges[0], ranges[1], Nx = 200, Ny = 200)
         equation.plot()
+
+    if eq == 'UnsteadyFlowOverAirfoil':
+        uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all = equation.predict(pinn, *ranges, Nx = 512, Ny = 512, Nt = 10)
+        equation.create_gif_from_plots(uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all)
+        
 
 if __name__ == "__main__":
     main()
