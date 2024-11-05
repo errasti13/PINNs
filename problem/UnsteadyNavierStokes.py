@@ -7,8 +7,8 @@ import os
 
 class UnsteadyNavierStokes2D:
     
-    def __init__(self, nu=0.01):
-        self.nu = nu
+    def __init__(self,):
+        return
 
     def getBoundaryCondition(self, N0, x_min, x_max, y_min, y_max, t_min, t_max, sampling_method='uniform'):
         raise NotImplementedError("Boundary condition method must be implemented in a subclass.")
@@ -132,12 +132,13 @@ class UnsteadyNavierStokes2D:
     
 class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
     
-    def __init__(self, nu=0.01, c=1, AoA=0.0, uInlet=1.0, airfoil_coords=None):
-        super().__init__(nu)
+    def __init__(self, c=1, AoA=0.0, uInlet=1.0, Re = 100):
+        super().__init__()
         self.problemTag = "FlowOverAirfoil"
         self.c = c  
         self.AoA = AoA * np.pi / 180 
         self.uInlet = uInlet
+        self.nu = c * uInlet / Re
         self.generate_airfoil_coords()
 
     def generate_airfoil_coords(self, N=100, thickness=0.12):
@@ -250,8 +251,8 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         boundaries['airfoil']['u'] = tf.zeros_like(boundaries['airfoil']['x'], dtype=np.float32)
         boundaries['airfoil']['v'] = tf.zeros_like(boundaries['airfoil']['y'], dtype=np.float32)
 
-        boundaries['initial']['u'] = tf.zeros_like(boundaries['initial']['t'], dtype=np.float32)
-        boundaries['initial']['v'] = tf.zeros_like(boundaries['initial']['t'], dtype=np.float32)
+        boundaries['initial']['u'] = self.uInlet * np.cos(self.AoA)*tf.ones_like(boundaries['initial']['x'], dtype=np.float32)
+        boundaries['initial']['v'] = self.uInlet * np.sin(self.AoA)*tf.ones_like(boundaries['initial']['x'], dtype=np.float32)
         boundaries['initial']['p'] = tf.zeros_like(boundaries['initial']['t'], dtype=np.float32)
 
         return boundaries
@@ -326,7 +327,7 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
 
         return uPred_all, vPred_all, pPred_all, xPred_all, yPred_all, tPred_all
 
-    def plot(self, uPred, vPred, pPred, X_pred, Y_pred):
+    def plot(self, uPred, vPred, pPred, X_pred, Y_pred, uRange, vRange, pRange):
 
         plt.figure(figsize=(16, 8))
 
@@ -334,7 +335,7 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         plt.subplot(3, 1, 1)
         plt.plot(self.xAirfoil, self.yAirfoil, color='black')
         plt.plot(self.xAirfoil, -self.yAirfoil, color='black')
-        plt.scatter(X_pred, Y_pred, c=uPred, cmap='jet', s=2)
+        plt.scatter(X_pred, Y_pred, c=uPred, vmin = uRange[0], vmax = uRange[1], cmap='jet', s=2)
         plt.xlim(X_pred.min(), X_pred.max())
         plt.ylim(Y_pred.min(), Y_pred.max())
         plt.colorbar()
@@ -346,7 +347,7 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         plt.subplot(3, 1, 2)
         plt.plot(self.xAirfoil, self.yAirfoil, color='black')
         plt.plot(self.xAirfoil, -self.yAirfoil, color='black')
-        plt.scatter(X_pred, Y_pred, c=vPred, cmap='jet', s=2)
+        plt.scatter(X_pred, Y_pred, c=vPred, vmin = vRange[0], vmax = vRange[1], cmap='jet', s=2)
         plt.xlim(X_pred.min(), X_pred.max())
         plt.ylim(Y_pred.min(), Y_pred.max())
         plt.colorbar()
@@ -358,7 +359,7 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         plt.subplot(3, 1, 3)
         plt.plot(self.xAirfoil, self.yAirfoil, color='black')
         plt.plot(self.xAirfoil, -self.yAirfoil, color='black')
-        plt.scatter(X_pred, Y_pred, c=pPred, cmap='jet', s=2)
+        plt.scatter(X_pred, Y_pred, c=pPred, vmin = pRange[0], vmax = pRange[1], cmap='jet', s=2)
         plt.xlim(X_pred.min(), X_pred.max())
         plt.ylim(Y_pred.min(), Y_pred.max())
         plt.colorbar()
@@ -372,9 +373,13 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         from io import BytesIO
         frames = []
 
+        uRange = [uPred.min(), uPred.max()]
+        vRange = [vPred.min(), vPred.max()]
+        pRange = [pPred.min(), pPred.max()]
+
         for i in range(len(T_pred[:, 0])):
             # Generate the plot
-            self.plot(uPred[i, :], vPred[i, :], pPred[i, :], X_pred[i, :], Y_pred[i, :])
+            self.plot(uPred[i, :], vPred[i, :], pPred[i, :], X_pred[i, :], Y_pred[i, :], uRange, vRange, pRange)
 
             buf = BytesIO()
             plt.savefig(buf, format="png")

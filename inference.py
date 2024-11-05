@@ -40,12 +40,14 @@ def main():
         equation_class = equation_params[0]
         ranges = equation_params[1:4]
         sampling_method = equation_params[4]
+        reynoldsNumber = equation_params[5]
 
         AoA = equation_params[5]
         equation = equation_class(AoA=AoA)
     else:
         equation = equation_class()
-
+    if eq in ['UnsteadyFlowOverAirfoil']:
+        pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}' + f'_AoA{AoA}' + f'_Re{reynoldsNumber}')
     pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}.tf')
 
     if eq == 'Burgers':
@@ -59,7 +61,7 @@ def main():
         equation.plot()
 
     if eq == 'UnsteadyFlowOverAirfoil':
-        uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all = equation.predict(pinn, *ranges, Nx = 512, Ny = 512, Nt = 10)
+        uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all = equation.predict(pinn, *ranges, Nx = 512, Ny = 512, Nt = 100)
         equation.create_gif_from_plots(uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all)
         
 

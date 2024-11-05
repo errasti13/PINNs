@@ -15,7 +15,7 @@ def main():
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random', 0.0),
         'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0),
-        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 10), 'random', 0.0)
+        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 10), 'random', 5.0, 1000)
     }
 
     if eq not in equations:
@@ -26,6 +26,7 @@ def main():
         equation_class = equation_params[0]
         ranges = equation_params[1:4]
         sampling_method = equation_params[4]
+        reynoldsNumber = equation_params[5]
     else:
         equation_params = equations[eq]
         equation_class = equation_params[0]
@@ -35,7 +36,7 @@ def main():
     if eq in ['FlatPlate', 'FlowOverAirfoil', 'LidDrivenCavity']:
         pinn = PINN(output_shape = 3, eq = eq)
     elif eq in ['UnsteadyFlowOverAirfoil']:
-        pinn = PINN(input_shape = 3, output_shape = 3, eq = eq)
+        pinn = PINN(input_shape = 3, output_shape = 3, eq = eq, layers = [20,40,40,40,20])
     else:
         pinn = PINN(eq = eq)
     
@@ -44,7 +45,7 @@ def main():
         equation = equation_class(AoA=AoA)
     elif eq in ['UnsteadyFlowOverAirfoil']:
         AoA = equation_params[5]
-        equation = equation_class(AoA=AoA)
+        equation = equation_class(AoA=AoA, Re = Re)
     else:
         equation = equation_class()
 
