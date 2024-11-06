@@ -26,7 +26,6 @@ def main():
         equation_class = equation_params[0]
         ranges = equation_params[1:4]
         sampling_method = equation_params[4]
-        reynoldsNumber = equation_params[5]
     else:
         equation_params = equations[eq]
         equation_class = equation_params[0]
@@ -45,7 +44,8 @@ def main():
         equation = equation_class(AoA=AoA)
     elif eq in ['UnsteadyFlowOverAirfoil']:
         AoA = equation_params[5]
-        equation = equation_class(AoA=AoA, Re = Re)
+        reynoldsNumber = equation_params[6]
+        equation = equation_class(AoA=AoA, Re = reynoldsNumber)
     else:
         equation = equation_class()
 

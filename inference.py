@@ -16,7 +16,7 @@ def main():
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random', 0.0),
         'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0),
-        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 1), 'random', 0.0)
+        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 1), 'random', 5.0, 1000)
     }
 
     if eq not in equations:
@@ -40,15 +40,17 @@ def main():
         equation_class = equation_params[0]
         ranges = equation_params[1:4]
         sampling_method = equation_params[4]
-        reynoldsNumber = equation_params[5]
-
+        
         AoA = equation_params[5]
-        equation = equation_class(AoA=AoA)
+        reynoldsNumber = equation_params[6]
+        equation = equation_class(AoA=AoA, Re = reynoldsNumber)
     else:
         equation = equation_class()
+
     if eq in ['UnsteadyFlowOverAirfoil']:
-        pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}' + f'_AoA{AoA}' + f'_Re{reynoldsNumber}')
-    pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}.tf')
+        pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}' + f'_AoA{AoA}' + f'_Re{reynoldsNumber}.tf')
+    else:
+        pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}.tf')
 
     if eq == 'Burgers':
         equation.predict(pinn, ranges[0], ranges[1], Nx = 100, Nt = 100)
