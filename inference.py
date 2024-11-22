@@ -64,7 +64,7 @@ def main():
 
     if eq == 'UnsteadyFlowOverAirfoil':
         uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all = equation.predict(
-            pinn, *ranges, Nx=512, Ny=512, Nt=20
+            pinn, *ranges, Nx=512, Ny=512, Nt=2
         )
 
         variables = ["u", "v", "p"]
