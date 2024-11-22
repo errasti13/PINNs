@@ -63,9 +63,26 @@ def main():
         equation.plot()
 
     if eq == 'UnsteadyFlowOverAirfoil':
-        uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all = equation.predict(pinn, *ranges, Nx = 512, Ny = 512, Nt = 100)
-        equation.create_gif_from_plots(uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all)
-        
+        uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all = equation.predict(
+            pinn, *ranges, Nx=512, Ny=512, Nt=20
+        )
+
+        variables = ["u", "v", "p"]
+        for i in range(len(x_pred_all)): 
+            equation.write_solution_to_file(
+                f"solution_{i}.csv",
+                x_data=x_pred_all[i].flatten(),
+                y_data=y_pred_all[i].flatten(),
+                variable_data=[
+                    uPred_all[i].flatten(),  
+                    vPred_all[i].flatten(), 
+                    pPred_all[i].flatten() 
+                ],
+                variables=variables
+            )
+
+
+
 
 if __name__ == "__main__":
     main()

@@ -369,6 +369,8 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
 
         plt.tight_layout()
 
+        return
+
     def create_gif_from_plots(self, uPred, vPred, pPred, X_pred, Y_pred, T_pred, gif_name="output.gif"):
         from io import BytesIO
         frames = []
@@ -388,10 +390,24 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
             
             plt.close()
 
-        # Save frames as a GIF
         frames[0].save(gif_name, save_all=True, append_images=frames[1:], duration=500, loop=0)
         print(f"GIF saved as {gif_name}")
 
 
+    def write_solution_to_file(self, filename, x_data, y_data, variable_data, variables):
+        if not all(len(x_data) == len(y_data) == len(var) for var in variable_data):
+            raise ValueError("x_data, y_data, and all variables must have the same length.")
+        
+        with open(filename, 'w') as file:
+            file.write(f"x coord, y coord, {', '.join(variables)}\n")
+            
+            for i in range(len(x_data)):
+                row = (
+                    [f"{x_data[i]:.4e}", f"{y_data[i]:.4e}"] +
+                    [f"{var[i]:.4e}" for var in variable_data]
+                )
+                file.write(", ".join(row) + "\n")
+
+        return
 
 
