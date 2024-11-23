@@ -40,14 +40,12 @@ class PINN:
         loss_history = []
         epoch_history = []
 
-        # Set up the plot
-        plt.ion()  # Turn on interactive mode for live updates
+        plt.ion()
         fig, ax = plt.subplots()
         ax.set_xlabel('Epoch')
         ax.set_ylabel('Loss')
-        ax.set_yscale('log')  # Set y-axis to logarithmic scale
+        ax.set_yscale('log')  
 
-        # Ensure that the ticks are in decimal format (e.g., 1.0, 0.1, etc.)
         ax.yaxis.set_major_formatter(ScalarFormatter())
         ax.yaxis.set_minor_formatter(ScalarFormatter())
         ax.yaxis.get_major_formatter().set_useOffset(False)
@@ -59,19 +57,17 @@ class PINN:
         for epoch in range(epochs):
             loss = self.train_step(loss_function, data)
 
-            # Update loss and epoch history only at intervals
             if (epoch + 1) % print_interval == 0:
                 loss_history.append(loss.numpy())
                 epoch_history.append(epoch + 1)
 
-                # Update plot
                 line.set_xdata(epoch_history)
                 line.set_ydata(loss_history)
-                ax.relim()  # Recompute the data limits
-                ax.autoscale_view()  # Rescale the view to fit the new data
+                ax.relim()  
+                ax.autoscale_view() 
 
                 plt.draw()
-                plt.pause(0.001)  # Pause to update the figure
+                plt.pause(0.001)
 
                 print(f"Epoch {epoch + 1}: Loss = {loss.numpy()}")
 

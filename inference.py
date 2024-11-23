@@ -16,7 +16,7 @@ def main():
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random', 0.0),
         'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0),
-        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 1), 'random', 5.0, 1000)
+        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 10), 'random', 10.0, 1e2)
     }
 
     if eq not in equations:
@@ -48,7 +48,7 @@ def main():
         equation = equation_class()
 
     if eq in ['UnsteadyFlowOverAirfoil']:
-        pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}' + f'_AoA{AoA}' + f'_Re{reynoldsNumber}.tf')
+        pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}_AoA{AoA}_Re{reynoldsNumber}.tf')
     else:
         pinn.model = tf.keras.models.load_model(f'trainedModels/{eq}.tf')
 
@@ -69,8 +69,8 @@ def main():
 
         variables = ["u", "v", "p"]
         for i in range(len(x_pred_all)): 
-            equation.write_solution_to_file(
-                f"solution_{i}.csv",
+            equation.writeSolution(
+                f"solution_{i}.vtk",
                 x_data=x_pred_all[i].flatten(),
                 y_data=y_pred_all[i].flatten(),
                 variable_data=[
@@ -80,9 +80,6 @@ def main():
                 ],
                 variables=variables
             )
-
-
-
-
+            
 if __name__ == "__main__":
     main()
