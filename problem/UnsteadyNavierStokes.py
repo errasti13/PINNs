@@ -394,30 +394,20 @@ class UnsteadyFlowOverAirfoil(UnsteadyNavierStokes2D):
         print(f"GIF saved as {gif_name}")
 
 
-    def writeSolution(self, filename, x_data, y_data, variable_data, variables, z_data = None, precision=6):
-        num_points = len(x_data) 
-        if z_data == None:
-            z_data = [0.0] * num_points
-
+    def writeSolution(self, filename, x_data, y_data, variable_data, variables):
+        if not all(len(x_data) == len(y_data) == len(var) for var in variable_data):
+            raise ValueError("x_data, y_data, and all variables must have the same length.")
+        
         with open(filename, 'w') as file:
-            file.write("# vtk DataFile Version 3.0\n")
-            file.write("VTK file for solution data\n")
-            file.write("ASCII\n")
-            file.write("DATASET POLYDATA\n")
+            file.write(f"x coord, y coord, {', '.join(variables)}\n")
             
-            file.write(f"POINTS {num_points} float\n")
-            for i in range(num_points):
-                file.write(f"{x_data[i]:.{precision}e} {y_data[i]:.{precision}e} {z_data[i]:.{precision}e}\n")
-            
-            file.write(f"VERTICES {num_points} {2 * num_points}\n") 
-            for i in range(num_points):
-                file.write(f"1 {i}\n")
+            for i in range(len(x_data)):
+                row = (
+                    [f"{x_data[i]:.4e}", f"{y_data[i]:.4e}"] +
+                    [f"{var[i]:.4e}" for var in variable_data]
+                )
+                file.write(", ".join(row) + "\n")
 
-            file.write(f"POINT_DATA {num_points}\n")
-            for var, var_name in zip(variable_data, variables):
-                file.write(f"SCALARS {var_name} float 1\n")
-                file.write("LOOKUP_TABLE default\n")
-                for value in var:
-                    file.write(f"{value:.{precision}e}\n")
+        return
 
-        return None
+
