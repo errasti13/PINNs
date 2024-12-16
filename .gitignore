@@ -2,3 +2,10 @@
 __pycache__/
 __pycache__/*
 */__pycache__/*
+*csv
+*gif
+*png
+*index
+*pb
+*data*
+*cpython*
