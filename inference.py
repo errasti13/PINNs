@@ -16,7 +16,7 @@ def main():
         'LidDrivenCavity': (LidDrivenCavity, (-1, 1), (-1, 1), 'random'),
         'FlatPlate': (FlatPlate, (-3, 5), (-3, 3), 'random', 0.0),
         'FlowOverAirfoil': (FlowOverAirfoil, (-3, 5), (-3, 3), 'random', 0.0),
-        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 10), 'random', 10.0, 1e2)
+        'UnsteadyFlowOverAirfoil': (UnsteadyFlowOverAirfoil, (-3, 5), (-3, 3), (0, 10), 'random', 5.0, 1e2)
     }
 
     if eq not in equations:
@@ -64,13 +64,13 @@ def main():
 
     if eq == 'UnsteadyFlowOverAirfoil':
         uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all = equation.predict(
-            pinn, *ranges, Nx=512, Ny=512, Nt=2
+            pinn, *ranges, Nx=512, Ny=512, Nt=20
         )
 
         variables = ["u", "v", "p"]
         for i in range(len(x_pred_all)): 
             equation.writeSolution(
-                f"solution_{i}.vtk",
+                f"solution_{i}.csv",
                 x_data=x_pred_all[i].flatten(),
                 y_data=y_pred_all[i].flatten(),
                 variable_data=[
@@ -80,6 +80,8 @@ def main():
                 ],
                 variables=variables
             )
+
+        equation.create_gif_from_plots(uPred_all, vPred_all, pPred_all, x_pred_all, y_pred_all, t_pred_all)
             
 if __name__ == "__main__":
     main()
